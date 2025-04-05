@@ -1,9 +1,16 @@
-// ... (other imports and code)
-import React, { useState, useRef, useEffect, useContext } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useContext,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ThemeContext } from "../context/ThemeContext";
 import MapSearchComponent from "./MapSearchComponent"; // if using the map with search
+import MessagesTab from "./MessagesTab";
+import UserListings from "./UserListings"; // Your UserListings component
 
 const Dashboard = () => {
   const tabs = ["Favorites", "Messages", "Settings"];
@@ -16,7 +23,91 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
 
+  // State for triggering refresh of listings (used in the Settings tab)
+  const [listingRefresh, setListingRefresh] = useState(0);
+
+  // NEW: Favorites state to hold an array of favorited listings.
+  const [favorites, setFavorites] = useState([]);
+
+  // Fetch favorites from the backend once the user is available.
+  useEffect(() => {
+    if (user && user.id) {
+      fetch(`/api/favorites?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.favorites) {
+            setFavorites(data.favorites);
+          }
+        })
+        .catch((err) =>
+          console.error("Error fetching favorites:", err)
+        );
+    }
+  }, [user]);
+
+  // Callback to update favorites.
+  // Call this function with the listing and its new favorite state (true/false)
+  // from any child component (like ChatWindow) to update the Dashboard’s favorites.
+  const handleFavorite = (listing, isFavorited) => {
+    if (isFavorited) {
+      setFavorites((prev) => {
+        if (prev.find((fav) => fav.id === listing.id)) return prev;
+        return [...prev, listing];
+      });
+    } else {
+      setFavorites((prev) => prev.filter((fav) => fav.id !== listing.id));
+    }
+    console.log(`Listing ${listing.id} favorite toggled: ${isFavorited}`);
+    // Here you can also perform an API call to persist the favorite change.
+  };
+
+  // Handler for file input changes.
+  const handleFileChange = (e) => {
+    setPhotoFile(e.target.files[0]);
+  };
+
+  // Form submission handler for creating a new listing.
+  const handleListingSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("price", price);
+    formData.append("description", description);
+    if (newListingLocation) {
+      formData.append(
+        "location",
+        `${newListingLocation.lat},${newListingLocation.lng}`
+      );
+    }
+    if (photoFile) {
+      formData.append("photo", photoFile);
+    }
+    try {
+      const response = await fetch("/api/listings", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (response.ok) {
+        console.log("Listing created:", data);
+        setDescription("");
+        setPrice("");
+        setPhotoFile(null);
+        setNewListingLocation(null);
+        setIsModalOpen(false);
+        setListingRefresh((prev) => prev + 1);
+      } else {
+        console.error("Error creating listing:", data.error);
+      }
+    } catch (error) {
+      console.error("Error sending request:", error);
+    }
+  };
+
+  // Adjust underline position for active tab.
   useEffect(() => {
     const currentTab = tabRefs.current[activeTab];
     if (currentTab) {
@@ -29,7 +120,7 @@ const Dashboard = () => {
 
   // Bypass login for testing new listing functionality.
   const handleNewListingClick = () => {
-    const bypassLoginForTesting = true; // set to false when ready
+    const bypassLoginForTesting = true; // change when ready for production
     if (!user && !bypassLoginForTesting) {
       navigate("/login");
     } else {
@@ -37,7 +128,7 @@ const Dashboard = () => {
     }
   };
 
-  // Location functions for new listing modal:
+  // Geolocation function for "Use Current Location"
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -57,6 +148,7 @@ const Dashboard = () => {
     }
   };
 
+  // Map modal functions.
   const openMapModal = () => {
     setIsMapModalOpen(true);
   };
@@ -69,12 +161,42 @@ const Dashboard = () => {
     setIsMapModalOpen(false);
   };
 
+  // Render content based on the active tab.
   const renderContent = () => {
     switch (activeTab) {
       case "Favorites":
-        return <div>Your favorite items will appear here.</div>;
+        return (
+          <div>
+            <h3>Your Favorites</h3>
+            {favorites.length === 0 ? (
+              <p>No favorites yet.</p>
+            ) : (
+              favorites.map((fav) => (
+                <div
+                  key={fav.id}
+                  style={{
+                    border: "1px solid #ddd",
+                    padding: "10px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <h4>{fav.description}</h4>
+                  <p>Price: ${fav.price}</p>
+                  <p>Location: {fav.location}</p>
+                  {fav.photo_url && (
+                    <img
+                      src={`http://localhost:5000/${fav.photo_url}`}
+                      alt="Favorite Listing"
+                      style={{ width: "200px" }}
+                    />
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        );
       case "Messages":
-        return <div>Check your messages and conversations here.</div>;
+        return <MessagesTab />;
       case "Settings":
         return (
           <div>
@@ -88,6 +210,7 @@ const Dashboard = () => {
             <hr style={styles.hr} />
             <h4>My Listings</h4>
             <p>View all your personal listings here.</p>
+            <UserListings refreshTrigger={listingRefresh} />
           </div>
         );
       default:
@@ -95,6 +218,7 @@ const Dashboard = () => {
     }
   };
 
+  // Set background styles according to the theme.
   const pageWrapperBackground =
     theme === "dark"
       ? "linear-gradient(135deg, #333, #555)"
@@ -127,7 +251,13 @@ const Dashboard = () => {
               {tab}
             </div>
           ))}
-          <div style={{ ...styles.underline, left: underlineStyle.left, width: underlineStyle.width }} />
+          <div
+            style={{
+              ...styles.underline,
+              left: underlineStyle.left,
+              width: underlineStyle.width,
+            }}
+          />
         </nav>
         <section style={styles.content}>{renderContent()}</section>
 
@@ -136,24 +266,36 @@ const Dashboard = () => {
           <div style={styles.modalOverlay}>
             <div style={styles.modalContent}>
               <h2 style={styles.modalTitle}>Create a New Listing</h2>
-              <form style={styles.form}>
+              <form style={styles.form} onSubmit={handleListingSubmit}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Upload Photo:</label>
-                  <input type="file" style={styles.input} />
+                  <input type="file" style={styles.input} onChange={handleFileChange} />
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Description:</label>
-                  <textarea style={styles.textarea} placeholder="Enter a description..." />
+                  <textarea
+                    style={styles.textarea}
+                    placeholder="Enter a description..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Price ($):</label>
-                  <input type="number" style={styles.input} placeholder="Enter price" />
+                  <input
+                    type="number"
+                    style={styles.input}
+                    placeholder="Enter price"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Location:</label>
                   {newListingLocation ? (
                     <p style={{ margin: "8px 0" }}>
-                      Selected: ({newListingLocation.lat.toFixed(4)}, {newListingLocation.lng.toFixed(4)})
+                      Selected: ({newListingLocation.lat.toFixed(4)},{" "}
+                      {newListingLocation.lng.toFixed(4)})
                     </p>
                   ) : (
                     <p style={{ margin: "8px 0" }}>No location selected</p>
@@ -168,10 +310,14 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div style={styles.buttonGroup}>
-                  <button type="button" style={styles.submitBtn}>
+                  <button type="submit" style={styles.submitBtn}>
                     Submit
                   </button>
-                  <button type="button" style={styles.cancelBtn} onClick={() => setIsModalOpen(false)}>
+                  <button
+                    type="button"
+                    style={styles.cancelBtn}
+                    onClick={() => setIsModalOpen(false)}
+                  >
                     Cancel
                   </button>
                 </div>
@@ -180,7 +326,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Map Modal for selecting location */}
+        {/* Map Modal */}
         {isMapModalOpen && (
           <div style={styles.mapModalOverlay}>
             <div style={styles.mapModalContent}>
@@ -192,7 +338,14 @@ const Dashboard = () => {
                   setNewListingLocation(latlng);
                 }}
               />
-              <div style={{ marginTop: "20px", display: "flex", gap: "10px", justifyContent: "center" }}>
+              <div
+                style={{
+                  marginTop: "20px",
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "center",
+                }}
+              >
                 <button type="button" style={styles.submitBtn} onClick={handleConfirmMapLocation}>
                   Confirm Location
                 </button>
@@ -203,12 +356,12 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
 };
 
+// Provided styles
 const styles = {
   pageWrapper: {
     minHeight: "100vh",
@@ -276,6 +429,23 @@ const styles = {
     margin: "20px 0",
     border: "none",
     borderTop: "1px solid #ccc",
+  },
+  themeToggleContainer: {
+    marginTop: "20px",
+    padding: "15px",
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    textAlign: "center",
+  },
+  themeToggleBtn: {
+    marginTop: "10px",
+    padding: "8px 16px",
+    fontSize: "0.9rem",
+    backgroundColor: "#5563DE",
+    color: "#fff",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer",
   },
   modalOverlay: {
     position: "fixed",
@@ -386,23 +556,6 @@ const styles = {
     padding: "20px",
     textAlign: "center",
     boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-  },
-  themeToggleContainer: {
-    marginTop: "20px",
-    padding: "15px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    textAlign: "center",
-  },
-  themeToggleBtn: {
-    marginTop: "10px",
-    padding: "8px 16px",
-    fontSize: "0.9rem",
-    backgroundColor: "#5563DE",
-    color: "#fff",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
   },
 };
 

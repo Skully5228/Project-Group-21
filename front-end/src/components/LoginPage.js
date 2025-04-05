@@ -9,12 +9,34 @@ const LoginPage = () => {
   const login = useGoogleLogin({
     onSuccess: (tokenResponse) => {
       console.log("Google OAuth successful:", tokenResponse);
-      navigate("/dashboard");
+      // Send the id_token from Google to your backend:
+      fetch("http://localhost:3000/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: tokenResponse.id_token }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.user) {
+            // If authentication is successful, update your AuthContext:
+            // For instance: signIn(data.user);
+            console.log("Backend auth successful:", data.user);
+            navigate("/dashboard");
+          } else {
+            console.error("Backend authentication error:", data.error);
+          }
+        })
+        .catch((err) => {
+          console.error("Error during backend authentication:", err);
+        });
     },
     onError: (errorResponse) => {
       console.error("Google OAuth error:", errorResponse);
     },
   });
+  
 
   return (
     <div style={styles.wrapper}>
