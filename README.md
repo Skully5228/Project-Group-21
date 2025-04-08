@@ -23,7 +23,7 @@ CREATE TABLE users (
 CREATE TABLE listings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  price DECIMAL(10,2) NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
   location VARCHAR(50) NOT NULL,  -- stored as a string "lat,lng"
   photo_url VARCHAR(255),
   description TEXT,
