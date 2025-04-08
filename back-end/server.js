@@ -6,6 +6,19 @@ const pool = require('./database');  // Import your MySQL connection pool
 const multer = require('multer');
 
 const app = express();
+require('dotenv').config();
+const listingsRouter = require('./routes/listings'); // Adjust if needed
+
+app.use(express.json());
+
+// Mount the listings API
+app.use('/api/listings', listingsRouter);
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 // Middleware
 app.use(express.json());
