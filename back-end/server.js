@@ -4,20 +4,25 @@ const cors = require('cors');
 const { OAuth2Client } = require('google-auth-library');
 const pool = require('./database');  // Import your MySQL connection pool
 const multer = require('multer');
+const dotenv = require('dotenv');
+const listingsRouter = require('./routes/listings');
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-require('dotenv').config();
-const listingsRouter = require('./routes/listings'); // Adjust if needed
 
+// Middleware
 app.use(express.json());
+app.use(cors());
 
-// Mount the listings API
+// Routes
 app.use('/api/listings', listingsRouter);
 
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
 
 // Middleware
