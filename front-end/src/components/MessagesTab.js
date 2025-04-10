@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import ChatWindow from "./ChatWindow";
+import { supabase } from './supabase';
 
 const MessagesTab = () => {
   const { user } = useContext(AuthContext);

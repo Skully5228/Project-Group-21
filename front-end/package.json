@@ -5,10 +5,12 @@
   "proxy": "http://localhost:5000",
   "dependencies": {
     "@react-oauth/google": "^0.12.1",
+    "@supabase/supabase-js": "^2.49.4",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^13.5.0",
+    "geolib": "^3.3.4",
     "leaflet": "^1.9.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import { AuthContext } from "../context/AuthContext";
+import { supabase } from './supabase';
 
 // Inline ListingCard component to display each listing and its delete button.
 const ListingCard = ({ listing, onDelete }) => {
