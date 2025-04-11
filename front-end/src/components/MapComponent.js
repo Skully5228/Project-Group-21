@@ -1,10 +1,8 @@
-// MapComponent.js
 import React, { useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import "leaflet/dist/leaflet.css";
 import L from 'leaflet';
 
-// Fix default icon issues in React-Leaflet (so the marker icon displays correctly)
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext, useCallback } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { supabase } from './supabase';
 
-// Inline ListingCard component to display each listing and its delete button.
 const ListingCard = ({ listing, onDelete }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -40,7 +39,7 @@ const ListingCard = ({ listing, onDelete }) => {
           border: "none",
           borderRadius: "4px",
           cursor: "pointer",
-          marginLeft: "20px", // moves button to the right
+          marginLeft: "20px",
           transition: "background-color 0.3s ease",
         }}
       >
@@ -56,7 +55,6 @@ const UserListings = ({ refreshTrigger }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Wrap fetchListings in useCallback to ensure it has a stable reference.
   const fetchListings = useCallback(async () => {
     try {
       const response = await fetch(`/api/listings?userId=${user.id}`);
@@ -64,7 +62,6 @@ const UserListings = ({ refreshTrigger }) => {
         throw new Error("Failed to fetch listings");
       }
       const data = await response.json();
-      // Expecting: { listings: [...] }
       setListings(data.listings);
     } catch (err) {
       setError(err.message);
@@ -77,7 +74,7 @@ const UserListings = ({ refreshTrigger }) => {
     if (user && user.id) {
       fetchListings();
     }
-  }, [user, refreshTrigger, fetchListings]);  // Added fetchListings to the dependencies
+  }, [user, refreshTrigger, fetchListings]);
 
   // Function to delete a listing.
   const handleDelete = async (listingId) => {
@@ -88,7 +85,6 @@ const UserListings = ({ refreshTrigger }) => {
       if (!response.ok) {
         throw new Error("Failed to delete listing");
       }
-      // Re-fetch the listings to update the UI.
       fetchListings();
     } catch (err) {
       console.error("Error deleting listing:", err.message);

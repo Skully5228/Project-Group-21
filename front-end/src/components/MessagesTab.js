@@ -1,52 +1,78 @@
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import ChatWindow from "./ChatWindow";
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 const MessagesTab = () => {
   const { user } = useContext(AuthContext);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
 
-  // Fetch conversation summaries for the logged-in user.
-  // (Replace this effect with a real fetch once you have the endpoint.)
+  // Fetch conversation summaries for the logged in user.
+  // This query fetches all messages where the user is involved,
+  // joins the related listing info, orders them (newest first),
+  // and then we group them by listing_id in the client.
   useEffect(() => {
-    // Uncomment and modify when your backend provides conversation data:
-    /*
-    fetch(`http://localhost:3000/api/conversations?userId=${user.id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setConversations(data.conversations);
-      })
-      .catch((err) => console.error("Error fetching conversations:", err));
-    */
+    if (!user) return;
 
-    // For now, use dummy data:
-    setConversations([
-      {
-        listingId: 1,
-        productTitle: "Vintage Bicycle",
-        lastMessage: "Hi, is it still available?",
-        timestamp: new Date().toISOString(),
-        sellerId: 2,
-      },
-      {
-        listingId: 4,
-        productTitle: "Laptop",
-        lastMessage: "When can I pick it up?",
-        timestamp: new Date().toISOString(),
-        sellerId: 3,
-      },
-    ]);
-  }, [user.id]);
+    const fetchConversations = async () => {
+      // Query the messages table with a join on listings.
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*, listing: listings(*)")
+        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .order("created_at", { ascending: false });
 
-  // Render the ChatWindow if a conversation is selected.
+      if (error) {
+        console.error("Error fetching conversations:", error);
+        return;
+      }
+
+      if (data) {
+        // Group messages by listing_id. For each conversation select the first (latest) message.
+        const convMap = new Map();
+        data.forEach((msg) => {
+          if (!convMap.has(msg.listing_id)) {
+            convMap.set(msg.listing_id, msg);
+          }
+        });
+        setConversations(Array.from(convMap.values()));
+      }
+    };
+
+    fetchConversations();
+  }, [user]);
+
+  // If no user is logged in, display a fallback.
+  if (!user) {
+    return (
+      <div style={messagesStyles.container}>
+        <h3 style={messagesStyles.title}>Your Conversations</h3>
+        <p>No Conversations yet.</p>
+      </div>
+    );
+  }
+
+  // When a conversation is selected, open the ChatWindow.
   if (selectedConversation) {
+    // Determine the other party's ID.
+    // Here we assume a conversation is between two users.
+    const otherPartyId =
+      selectedConversation.sender_id === user.id
+        ? selectedConversation.recipient_id
+        : selectedConversation.sender_id;
+
+    // Use the joined listing details to get the real product title.
+    const productTitle =
+      selectedConversation.listing && selectedConversation.listing.title
+        ? selectedConversation.listing.title
+        : `Listing ${selectedConversation.listing_id}`;
+
     return (
       <ChatWindow
-        listingId={selectedConversation.listingId}
-        sellerId={selectedConversation.sellerId}
-        productTitle={selectedConversation.productTitle}
+        listingId={selectedConversation.listing_id}
+        sellerId={otherPartyId}
+        productTitle={productTitle}
         onClose={() => setSelectedConversation(null)}
       />
     );
@@ -56,19 +82,23 @@ const MessagesTab = () => {
     <div style={messagesStyles.container}>
       <h3 style={messagesStyles.title}>Your Conversations</h3>
       {conversations.length === 0 ? (
-        <p>No conversations yet.</p>
+        <p>No messages yet.</p>
       ) : (
         <ul style={messagesStyles.list}>
           {conversations.map((conv) => (
             <li
-              key={conv.listingId}
+              key={conv.listing_id}
               style={messagesStyles.listItem}
               onClick={() => setSelectedConversation(conv)}
             >
-              <h4 style={messagesStyles.productTitle}>{conv.productTitle}</h4>
-              <p style={messagesStyles.lastMessage}>{conv.lastMessage}</p>
+              <h4 style={messagesStyles.productTitle}>
+                {conv.listing && conv.listing.title
+                  ? conv.listing.title
+                  : `Listing ${conv.listing_id}`}
+              </h4>
+              <p style={messagesStyles.lastMessage}>{conv.context}</p>
               <small style={messagesStyles.timestamp}>
-                {new Date(conv.timestamp).toLocaleString()}
+                {new Date(conv.created_at).toLocaleString()}
               </small>
             </li>
           ))}

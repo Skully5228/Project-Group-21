@@ -1,10 +1,9 @@
 import React, { useState, useContext, useEffect } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import ChatWindow from "./ChatWindow";
-import { supabase } from './supabase'; // Ensure the path is correct
-import geolib from 'geolib'; // Add geolib for distance calculations
+import { supabase } from './supabase'; 
+import geolib from 'geolib'; 
 
-// New helper: parse location string into an object
 const parseLocation = (loc) => {
   if (typeof loc === "string") {
     const parts = loc.split(",");
@@ -83,7 +82,6 @@ const HomePage = () => {
     fetchListings();
   }, [searchText, priceMin, priceMax, range]);
   
-  // Set styles based on the current theme
   const backgroundStyle =
     theme === "dark"
       ? "linear-gradient(135deg, #333, #555)"
@@ -182,7 +180,7 @@ const HomePage = () => {
       {selectedListing && (
         <ChatWindow
           listingId={selectedListing.id}
-          sellerId={selectedListing.user_id} // Assuming user_id is the seller
+          sellerId={selectedListing.user_id} 
           productTitle={selectedListing.description || "No Title"}
           onClose={() => setSelectedListing(null)}
         />

@@ -1,6 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "./supabase"; // Ensure this is your frontend supabase client
+import { AuthContext } from "../context/AuthContext"; // Adjust the path if needed
 
 const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) => {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  
+  // Always call all hooks unconditionally.
+  useEffect(() => {
+    if (!user) {
+      // If no user is authenticated, redirect to the login page.
+      navigate("/login");
+    }
+  }, [user, navigate]);
+
+  // Even if user is null, we define userId as null so that hooks are still called.
+  const userId = user ? user.id : null;
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isFavorited, setIsFavorited] = useState(false);
@@ -8,79 +25,92 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
 
   // Fetch messages
   useEffect(() => {
-    fetch(`http://localhost:3000/api/messages?listingId=${listingId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.messages) {
-          setMessages(data.messages);
-        }
-      })
-      .catch((err) => console.error("Error fetching messages:", err));
-  }, [listingId]);
+    if (!userId) return; // Guard: exit effect if userId is not available.
+    async function fetchMessages() {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("listing_id", listingId)
+        .in("sender_id", [userId, sellerId])
+        .in("recipient_id", [userId, sellerId])
+        .order("created_at", { ascending: true });
 
-  // Auto-scroll messages
+      if (error) {
+        console.error("Error fetching messages:", error);
+      } else {
+        setMessages(data);
+      }
+    }
+    fetchMessages();
+  }, [listingId, sellerId, userId]);
+
+  // Auto-scroll to bottom on messages change.
   useEffect(() => {
     if (messageContainerRef.current) {
-      messageContainerRef.current.scrollTop =
-        messageContainerRef.current.scrollHeight;
+      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // On mount, fetch favorite status from the backend and update local state.
+  // Fetch favorite status from the database.
   useEffect(() => {
-    const userId = 1; // For testing purposes; replace with actual user ID.
-    fetch(`http://localhost:3000/api/favorites?userId=${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.favorites) {
-          // Check if the current listing exists in the favorites
-          const exists = data.favorites.some((fav) => fav.id === listingId);
-          setIsFavorited(exists);
-        }
-      })
-      .catch((err) => console.error("Error fetching favorites:", err));
-  }, [listingId]);
+    if (!userId) return;
+    async function fetchFavorites() {
+      const { data, error } = await supabase
+        .from("favorites")
+        .select("*")
+        .eq("user_id", userId);
+      
+      if (error) {
+        console.error("Error fetching favorites:", error);
+      } else if (data) {
+        const exists = data.some((fav) => fav.listing_id === listingId);
+        setIsFavorited(exists);
+      }
+    }
+    fetchFavorites();
+  }, [listingId, userId]);
 
-  const handleSendMessage = () => {
+  // Handle sending a message.
+  const handleSendMessage = async () => {
+    if (!userId) {
+      alert("Please log in.");
+      return;
+    }
+
+    if (userId === sellerId) {
+      alert("You can't message yourself.");
+      return;
+    }
+    
     if (!newMessage.trim()) return;
 
-    fetch("http://localhost:3000/api/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        listingId,
-        recipientId: sellerId,
-        content: newMessage,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const newMsg =
-          data.chatMessage || {
-            id: Date.now(),
-            sender_id: 1, // hardcoded for testing
-            content: newMessage,
-            created_at: new Date().toISOString(),
-          };
-        setMessages((prevMessages) => [...prevMessages, newMsg]);
-        setNewMessage("");
-      })
-      .catch((err) => {
-        console.error("Error sending message:", err);
-        const newMsg = {
-          id: Date.now(),
-          sender_id: 1,
-          content: newMessage,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prevMessages) => [...prevMessages, newMsg]);
-        setNewMessage("");
-      });
+    const message = {
+      listing_id: listingId,
+      sender_id: userId,
+      recipient_id: sellerId,
+      content: newMessage,
+    };
+
+    const { data, error } = await supabase
+      .from("messages")
+      .insert([message])
+      .single();
+
+    if (error) {
+      console.error("Error sending message:", error);
+      // Optimistic update on error.
+      const optimisticMessage = {
+        ...message,
+        id: Date.now(),
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prevMessages) => [...prevMessages, optimisticMessage]);
+    } else {
+      setMessages((prevMessages) => [...prevMessages, data]);
+    }
+    setNewMessage("");
   };
 
-  // Allow sending message with Enter key.
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -88,45 +118,44 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
     }
   };
 
-  // Toggle favorite status and persist it to the database.
-  const handleFavoriteToggle = () => {
+  // Toggle favorite status in the database.
+  const handleFavoriteToggle = async () => {
+    if (!userId) return;
     const newState = !isFavorited;
     setIsFavorited(newState);
     console.log("Favorite toggled. New state:", newState);
 
-    // Hardcoded userId; in production obtain this from auth context or props.
-    const userId = 1;
     if (newState) {
-      // Add favorite using POST /api/favorites.
-      fetch("http://localhost:3000/api/favorites", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId, listingId }),
-      })
-        .then((res) => res.json())
-        .then((data) => console.log("Favorite added:", data))
-        .catch((err) => console.error("Error adding favorite:", err));
+      const { data, error } = await supabase
+        .from("favorites")
+        .insert({ user_id: userId, listing_id: listingId });
+      
+      if (error) {
+        console.error("Error adding favorite:", error);
+      } else {
+        console.log("Favorite added:", data);
+      }
     } else {
-      // Remove favorite using DELETE /api/favorites.
-      fetch("http://localhost:3000/api/favorites", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId, listingId }),
-      })
-        .then((res) => res.json())
-        .then((data) => console.log("Favorite removed:", data))
-        .catch((err) => console.error("Error removing favorite:", err));
+      const { data, error } = await supabase
+        .from("favorites")
+        .delete()
+        .eq("user_id", userId)
+        .eq("listing_id", listingId);
+      
+      if (error) {
+        console.error("Error removing favorite:", error);
+      } else {
+        console.log("Favorite removed:", data);
+      }
     }
 
-    // Optionally notify the parent if a callback is provided.
     if (onFavorite) {
       onFavorite({ id: listingId, description: productTitle }, newState);
     }
   };
+
+  // If user is not available, show nothing (the redirect should already have been fired).
+  if (!user) return null;
 
   return (
     <div style={styles.overlay}>
@@ -162,7 +191,9 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
             <div
               key={msg.id}
               style={
-                msg.sender_id === 1 ? styles.messageBuyer : styles.messageSeller
+                msg.sender_id === userId
+                  ? styles.messageBuyer
+                  : styles.messageSeller
               }
             >
               <p style={styles.messageText}>{msg.content}</p>
@@ -189,8 +220,6 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
     </div>
   );
 };
-
-
 
 
 const styles = {

@@ -154,7 +154,7 @@ const Dashboard = () => {
 
   // Bypass login for testing new listing functionality.
   const handleNewListingClick = () => {
-    const bypassLoginForTesting = true; // change when ready for production
+    const bypassLoginForTesting = false; // change when ready for production
     if (!user && !bypassLoginForTesting) {
       navigate("/login");
     } else {

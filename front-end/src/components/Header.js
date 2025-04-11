@@ -8,7 +8,7 @@ const Header = () => {
 
   const handleSignOut = () => {
     signOut();
-    navigate("/"); // adjust navigation as needed
+    navigate("/"); 
   };
 
   return (

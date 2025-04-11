@@ -20,13 +20,13 @@ const AddListing = ({ onListingAdded, userId }) => { // userId is passed as a pr
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Ensure latitude and longitude are split from the location input
+    
     const locationArr = formData.location.split(",");
     const latitude = parseFloat(locationArr[0]);
     const longitude = parseFloat(locationArr[1]);
 
     const listingData = {
-      user_id: userId, // Using the passed userId prop
+      user_id: userId, 
       title: formData.title,
       description: formData.description,
       price: formData.price,
@@ -44,7 +44,7 @@ const AddListing = ({ onListingAdded, userId }) => { // userId is passed as a pr
     if (res.ok) {
       const data = await res.json();
       alert("Listing created!");
-      if (onListingAdded) onListingAdded(); // refresh listings
+      if (onListingAdded) onListingAdded(); 
     } else {
       alert("Failed to create listing.");
     }
