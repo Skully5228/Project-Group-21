@@ -1,32 +1,19 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "./supabase"; // Ensure this is your frontend supabase client
-import { AuthContext } from "../context/AuthContext"; // Adjust the path if needed
+import React, { useState, useEffect, useContext, useRef } from "react";
+import { supabase } from "./supabase";
+import { AuthContext } from "../context/AuthContext";
 
 const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) => {
   const { user } = useContext(AuthContext);
-  const navigate = useNavigate();
-  
-  // Always call all hooks unconditionally.
-  useEffect(() => {
-    if (!user) {
-      // If no user is authenticated, redirect to the login page.
-      navigate("/login");
-    }
-  }, [user, navigate]);
-
-  // Even if user is null, we define userId as null so that hooks are still called.
-  const userId = user ? user.id : null;
-
+  const userId = user?.id;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isFavorited, setIsFavorited] = useState(false);
   const messageContainerRef = useRef(null);
 
-  // Fetch messages
+  // Fetch messages based on listingId, filtering by sender and recipient.
   useEffect(() => {
-    if (!userId) return; // Guard: exit effect if userId is not available.
-    async function fetchMessages() {
+    if (!userId || !sellerId || !listingId) return;
+
+    const fetchMessages = async () => {
       const { data, error } = await supabase
         .from("messages")
         .select("*")
@@ -37,53 +24,35 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
 
       if (error) {
         console.error("Error fetching messages:", error);
-      } else {
+      } else if (data) {
+        console.log("Fetched messages data:", data);
+        data.forEach((msg, idx) => {
+          if (msg == null) {
+            console.warn(`Message at index ${idx} is null.`);
+          } else if (msg.sender_id == null) {
+            console.warn(`Message at index ${idx} has null sender_id:`, msg);
+          } else if (msg.content == null) {
+            console.warn(`Message at index ${idx} has null content:`, msg);
+          }
+        });
         setMessages(data);
       }
-    }
+    };
+
     fetchMessages();
   }, [listingId, sellerId, userId]);
 
-  // Auto-scroll to bottom on messages change.
+  // Auto-scroll the chat container to the bottom on messages update.
   useEffect(() => {
     if (messageContainerRef.current) {
-      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+      messageContainerRef.current.scrollTop =
+        messageContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Fetch favorite status from the database.
-  useEffect(() => {
-    if (!userId) return;
-    async function fetchFavorites() {
-      const { data, error } = await supabase
-        .from("favorites")
-        .select("*")
-        .eq("user_id", userId);
-      
-      if (error) {
-        console.error("Error fetching favorites:", error);
-      } else if (data) {
-        const exists = data.some((fav) => fav.listing_id === listingId);
-        setIsFavorited(exists);
-      }
-    }
-    fetchFavorites();
-  }, [listingId, userId]);
-
-  // Handle sending a message.
+  // Function to handle sending a new message.
   const handleSendMessage = async () => {
-    if (!userId) {
-      alert("Please log in.");
-      return;
-    }
-
-    if (userId === sellerId) {
-      alert("You can't message yourself.");
-      return;
-    }
-    
     if (!newMessage.trim()) return;
-
     const message = {
       listing_id: listingId,
       sender_id: userId,
@@ -91,22 +60,25 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
       content: newMessage,
     };
 
+    // Force PostgREST to return the inserted row by chaining .select() after .insert().
     const { data, error } = await supabase
       .from("messages")
-      .insert([message])
-      .single();
+      .insert([message], { returning: "representation" })
+      .select();
 
     if (error) {
       console.error("Error sending message:", error);
-      // Optimistic update on error.
       const optimisticMessage = {
         ...message,
         id: Date.now(),
         created_at: new Date().toISOString(),
       };
-      setMessages((prevMessages) => [...prevMessages, optimisticMessage]);
+      setMessages((prev) => [...prev, optimisticMessage]);
+    } else if (data && data.length > 0) {
+      console.log("Message sent, returned data:", data[0]);
+      setMessages((prev) => [...prev, data[0]]);
     } else {
-      setMessages((prevMessages) => [...prevMessages, data]);
+      console.error("Insert returned no data. This may be an issue with your Supabase configuration.");
     }
     setNewMessage("");
   };
@@ -118,90 +90,33 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
     }
   };
 
-  // Toggle favorite status in the database.
-  const handleFavoriteToggle = async () => {
-    if (!userId) return;
-    const newState = !isFavorited;
-    setIsFavorited(newState);
-    console.log("Favorite toggled. New state:", newState);
-
-    if (newState) {
-      const { data, error } = await supabase
-        .from("favorites")
-        .insert({ user_id: userId, listing_id: listingId });
-      
-      if (error) {
-        console.error("Error adding favorite:", error);
-      } else {
-        console.log("Favorite added:", data);
-      }
-    } else {
-      const { data, error } = await supabase
-        .from("favorites")
-        .delete()
-        .eq("user_id", userId)
-        .eq("listing_id", listingId);
-      
-      if (error) {
-        console.error("Error removing favorite:", error);
-      } else {
-        console.log("Favorite removed:", data);
-      }
-    }
-
-    if (onFavorite) {
-      onFavorite({ id: listingId, description: productTitle }, newState);
-    }
-  };
-
-  // If user is not available, show nothing (the redirect should already have been fired).
-  if (!user) return null;
-
   return (
     <div style={styles.overlay}>
       <div style={styles.container}>
         <div style={styles.header}>
-          <div>
-            <h4 style={styles.productTitle}>{productTitle}</h4>
-            <p style={styles.headerSubtitle}>Chat with Seller</p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <button
-              onClick={handleFavoriteToggle}
-              style={{
-                padding: "8px 12px",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                backgroundColor: isFavorited ? "#ffc107" : "#eee",
-                color: isFavorited ? "#fff" : "#333",
-                transition: "background-color 0.3s ease",
-                marginRight: "10px",
-              }}
-            >
-              {isFavorited ? "Favorited" : "Favorite"}
-            </button>
-            <button onClick={onClose} style={styles.closeButton}>
-              ×
-            </button>
-          </div>
+          <h4 style={styles.productTitle}>{productTitle}</h4>
+          <button onClick={onClose} style={styles.closeButton}>
+            ×
+          </button>
         </div>
         <div style={styles.messageContainer} ref={messageContainerRef}>
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              style={
-                msg.sender_id === userId
-                  ? styles.messageBuyer
-                  : styles.messageSeller
-              }
-            >
-              <p style={styles.messageText}>{msg.content}</p>
-              <small style={styles.timestamp}>
-                {new Date(msg.created_at).toLocaleTimeString()}
-              </small>
-            </div>
-          ))}
+          {messages.map((msg, idx) => {
+            if (!msg || msg.sender_id == null) {
+              console.error(`Skipping message at index ${idx} since it is invalid:`, msg);
+              return null;
+            }
+            return (
+              <div
+                key={msg.id}
+                style={msg.sender_id === userId ? styles.messageBuyer : styles.messageSeller}
+              >
+                <p style={styles.messageText}>{msg.content}</p>
+                <small style={styles.timestamp}>
+                  {new Date(msg.created_at).toLocaleTimeString()}
+                </small>
+              </div>
+            );
+          })}
         </div>
         <div style={styles.inputContainer}>
           <input
@@ -220,7 +135,6 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
     </div>
   );
 };
-
 
 const styles = {
   overlay: {
@@ -258,11 +172,6 @@ const styles = {
     fontSize: "1.2rem",
     color: "#333",
   },
-  headerSubtitle: {
-    margin: 0,
-    fontSize: "0.9rem",
-    color: "#555",
-  },
   closeButton: {
     border: "none",
     background: "transparent",
@@ -295,12 +204,12 @@ const styles = {
     maxWidth: "70%",
   },
   messageText: {
-    margin: 0,
+    margin: "5px 0",
     fontSize: "1rem",
   },
   timestamp: {
     fontSize: "0.7rem",
-    color: "#ddd",
+    color: "#888",
     textAlign: "right",
     marginTop: "4px",
   },
