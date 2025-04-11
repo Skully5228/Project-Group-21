@@ -1,45 +1,80 @@
 const express = require('express');
-const pool = require('../db'); // Import the database connection pool
+const { supabase } = require('../supabase');  // Correcting the import
+const geolib = require('geolib');
+
 const router = express.Router();
 
-// Create a new listing
-router.post('/', async (req, res) => {
-  const { title, description, price, image_url } = req.body;
-
-  try {
-    const [result] = await pool.execute(
-      'INSERT INTO listings (title, description, price, image_url) VALUES (?, ?, ?, ?)',
-      [title, description, price, image_url]
-    );
-
-    res.status(201).json({ message: 'Listing created', listingId: result.insertId });
-  } catch (err) {
-    console.error('Error creating listing:', err);
-    res.status(500).json({ error: 'Error creating listing' });
-  }
-});
-
-// Get all listings
+// GET listings with filters
 router.get('/', async (req, res) => {
+  const { q, minPrice, maxPrice, userLat, userLng, range } = req.query;
+
   try {
-    const [rows] = await pool.execute('SELECT * FROM listings');
-    res.status(200).json(rows);
+    // Start with all listings
+    let { data: listings, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('sold', 0);  // Make sure to filter only unsold listings
+
+    if (error) throw error;
+
+    // Text search (description)
+    if (q) {
+      const lowerQ = q.toLowerCase();
+      listings = listings.filter(listing =>
+        listing.description && listing.description.toLowerCase().includes(lowerQ)
+      );
+    }
+
+    // Filter by price range
+    if (minPrice) {
+      listings = listings.filter(listing => listing.price >= parseFloat(minPrice));
+    }
+    if (maxPrice) {
+      listings = listings.filter(listing => listing.price <= parseFloat(maxPrice));
+    }
+
+    // Filter by distance if location info is present
+    if (userLat && userLng && range) {
+      const userCoords = { latitude: parseFloat(userLat), longitude: parseFloat(userLng) };
+
+      listings = listings.filter(listing => {
+        if (!listing.location) return false;
+        const [latStr, lngStr] = listing.location.split(',');
+        const lat = parseFloat(latStr);
+        const lng = parseFloat(lngStr);
+        if (isNaN(lat) || isNaN(lng)) return false;
+
+        const distance = geolib.getDistance(userCoords, { latitude: lat, longitude: lng });
+        const miles = distance / 1609.34;
+
+        return miles <= parseFloat(range);
+      });
+    }
+
+    res.json({ listings });
   } catch (err) {
     console.error('Error fetching listings:', err);
-    res.status(500).json({ error: 'Error fetching listings' });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// Update a listing to mark it as sold
-router.put('/:id', async (req, res) => {
-  const { id } = req.params;
+// POST create new listing
+router.post('/', async (req, res) => {
+  const { user_id, price, location, photo_url, description } = req.body;
 
   try {
-    await pool.execute('UPDATE listings SET is_sold = true WHERE id = ?', [id]);
-    res.status(200).json({ message: 'Listing marked as sold' });
+    const { data, error } = await supabase
+      .from('listings')
+      .insert([
+        { user_id, price, location, photo_url, description }
+      ]);
+
+    if (error) throw error;
+
+    res.status(201).json({ id: data[0].id, message: 'Listing created!' });
   } catch (err) {
-    console.error('Error updating listing:', err);
-    res.status(500).json({ error: 'Error updating listing' });
+    console.error('Error creating listing:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

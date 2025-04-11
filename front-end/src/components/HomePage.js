@@ -1,22 +1,8 @@
 import React, { useState, useContext, useEffect } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import ChatWindow from "./ChatWindow";
-
-// Helper functions for distance calculation (Haversine formula)
-const deg2rad = (deg) => deg * (Math.PI / 180);
-
-const getDistanceFromLatLonInMiles = (lat1, lon1, lat2, lon2) => {
-  const R = 3958.8; // Earth's radius in miles
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(deg2rad(lat1)) *
-      Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
+import { supabase } from './supabase'; // Ensure the path is correct
+import geolib from 'geolib'; // Add geolib for distance calculations
 
 // New helper: parse location string into an object
 const parseLocation = (loc) => {
@@ -24,7 +10,7 @@ const parseLocation = (loc) => {
     const parts = loc.split(",");
     return { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
   }
-  return loc; // if already an object, return as is.
+  return loc;
 };
 
 const HomePage = () => {
@@ -39,44 +25,65 @@ const HomePage = () => {
   // Assume current user location is NYC
   const currentUserLocation = { lat: 40.7128, lng: -74.0060 };
 
-  // Fetch listings from the database on component mount.
   useEffect(() => {
-    fetch("/api/listings")
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Fetched listings data:", data);
-        if (data.listings) {
-          setListings(data.listings);
-        } else if (Array.isArray(data)) {
-          setListings(data);
-        } else {
-          console.error("Unexpected listings format:", data);
+    const fetchListings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("listings")
+          .select("*")
+          .eq("sold", 0); // Get only unsold listings
+  
+        if (error) throw error;
+  
+        console.log("Fetched Listings:", data); // Log the fetched listings
+  
+        // Apply filters on the fetched data
+        let filteredListings = data;
+  
+        // Apply text search filter
+        if (searchText) {
+          const lowerQ = searchText.toLowerCase();
+          filteredListings = filteredListings.filter(listing =>
+            listing.description && listing.description.toLowerCase().includes(lowerQ)
+          );
         }
-      })
-      .catch((err) => console.error("Error fetching listings:", err));
-  }, []);
-
-  // Filter listings by search text, range, and price range.
-  const filteredListings = listings.filter((listing) => {
-    const matchesSearch = (listing.title || listing.description || "")
-      .toLowerCase()
-      .includes(searchText.toLowerCase());
-    const loc = parseLocation(listing.location);
-    const distance = getDistanceFromLatLonInMiles(
-      currentUserLocation.lat,
-      currentUserLocation.lng,
-      loc.lat,
-      loc.lng
-    );
-    const withinRange = range === "" ? true : distance <= parseFloat(range);
-    const meetsMinPrice =
-      priceMin === "" ? true : listing.price >= parseFloat(priceMin);
-    const meetsMaxPrice =
-      priceMax === "" ? true : listing.price <= parseFloat(priceMax);
-    return matchesSearch && withinRange && meetsMinPrice && meetsMaxPrice;
-  });
-
-  // Set styles based on the current theme.
+  
+        // Apply price filters
+        if (priceMin) {
+          filteredListings = filteredListings.filter(listing => listing.price >= parseFloat(priceMin));
+        }
+        if (priceMax) {
+          filteredListings = filteredListings.filter(listing => listing.price <= parseFloat(priceMax));
+        }
+  
+        // Apply location filter based on range if available
+        if (range) {
+          filteredListings = filteredListings.filter(listing => {
+            const loc = parseLocation(listing.location);
+            if (loc) {
+              const distance = geolib.getDistance(
+                { latitude: currentUserLocation.lat, longitude: currentUserLocation.lng },
+                { latitude: loc.lat, longitude: loc.lng }
+              );
+              const miles = distance / 1609.34; // Convert meters to miles
+              return miles <= parseFloat(range);
+            }
+            return false;
+          });
+        }
+  
+        console.log("Filtered Listings:", filteredListings); // Log filtered listings
+  
+        setListings(filteredListings);
+      } catch (err) {
+        console.error("Error fetching listings:", err);
+      }
+    };
+  
+    fetchListings();
+  }, [searchText, priceMin, priceMax, range]);
+  
+  // Set styles based on the current theme
   const backgroundStyle =
     theme === "dark"
       ? "linear-gradient(135deg, #333, #555)"
@@ -141,9 +148,9 @@ const HomePage = () => {
 
       <section style={styles.listingsSection}>
         <h3 style={styles.sectionTitle}>Listings</h3>
-        {filteredListings.length > 0 ? (
+        {listings.length > 0 ? (
           <div style={styles.listingsGrid}>
-            {filteredListings.map((listing) => {
+            {listings.map((listing) => {
               const loc = parseLocation(listing.location);
               return (
                 <div
@@ -151,15 +158,12 @@ const HomePage = () => {
                   style={styles.listingCard}
                   onClick={() => setSelectedListing(listing)}
                 >
-                  {/* Use title if available, otherwise description */}
                   <h4 style={styles.listingTitle}>
-                    {listing.title || listing.description}
+                    {listing.description || "No Title"}
                   </h4>
                   {loc ? (
                     <p style={styles.listingLocation}>
-                      Location: (
-                      {loc.lat ? loc.lat.toFixed(4) : "N/A"},{" "}
-                      {loc.lng ? loc.lng.toFixed(4) : "N/A"})
+                      Location: ({loc.lat.toFixed(4)}, {loc.lng.toFixed(4)})
                     </p>
                   ) : (
                     <p style={styles.listingLocation}>Location: N/A</p>
@@ -174,19 +178,18 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* Chat Modal - Opens when a listing is selected */}
+      {/* Chat Modal */}
       {selectedListing && (
         <ChatWindow
           listingId={selectedListing.id}
-          sellerId={selectedListing.sellerId}
-          productTitle={selectedListing.title || selectedListing.description}
+          sellerId={selectedListing.user_id} // Assuming user_id is the seller
+          productTitle={selectedListing.description || "No Title"}
           onClose={() => setSelectedListing(null)}
         />
       )}
     </div>
   );
 };
-
 
 const styles = {
   container: {
@@ -294,11 +297,6 @@ const styles = {
   listingTitle: {
     fontSize: "1.25rem",
     marginBottom: "10px",
-  },
-  listingDescription: {
-    fontSize: "1rem",
-    margin: 0,
-    color: "#555",
   },
   listingLocation: {
     fontSize: "0.9rem",

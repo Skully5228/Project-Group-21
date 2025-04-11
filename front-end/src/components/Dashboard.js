@@ -11,6 +11,8 @@ import { ThemeContext } from "../context/ThemeContext";
 import MapSearchComponent from "./MapSearchComponent"; // if using the map with search
 import MessagesTab from "./MessagesTab";
 import UserListings from "./UserListings"; // Your UserListings component
+import { supabase } from './supabase';
+
 
 const Dashboard = () => {
   const tabs = ["Favorites", "Messages", "Settings"];
@@ -70,40 +72,72 @@ const Dashboard = () => {
     setPhotoFile(e.target.files[0]);
   };
 
-  // Form submission handler for creating a new listing.
   const handleListingSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append("price", price);
-    formData.append("description", description);
-    if (newListingLocation) {
-      formData.append(
-        "location",
-        `${newListingLocation.lat},${newListingLocation.lng}`
-      );
-    }
-    if (photoFile) {
-      formData.append("photo", photoFile);
-    }
+  
+    // Prepare the data to be sent to Supabase
+    const listingData = {
+      description: description,
+      price: parseFloat(price),
+      location: newListingLocation ? `${newListingLocation.lat},${newListingLocation.lng}` : null,
+      photo_url: null, // We'll handle the photo upload separately below
+    };
+  
+    // Start by inserting the listing data (without the photo) into Supabase
     try {
-      const response = await fetch("/api/listings", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      if (response.ok) {
-        console.log("Listing created:", data);
-        setDescription("");
-        setPrice("");
-        setPhotoFile(null);
-        setNewListingLocation(null);
-        setIsModalOpen(false);
-        setListingRefresh((prev) => prev + 1);
-      } else {
-        console.error("Error creating listing:", data.error);
+      const { data, error } = await supabase
+        .from('listings') // Replace with your table name
+        .insert([listingData]);
+  
+      if (error) {
+        console.error("Error inserting listing data:", error);
+        return;
       }
+  
+      // If there's a photo file, upload it to Supabase storage
+      if (photoFile) {
+        const photoPath = `listings/${data[0].id}/photo_${Date.now()}`;
+        const { error: uploadError } = await supabase.storage
+          .from('listings') // Replace with your storage bucket name
+          .upload(photoPath, photoFile);
+  
+        if (uploadError) {
+          console.error("Error uploading photo:", uploadError);
+          return;
+        }
+  
+        // Update the listing to include the photo URL
+        const { publicURL, error: urlError } = supabase.storage
+          .from('listings')
+          .getPublicUrl(photoPath);
+  
+        if (urlError) {
+          console.error("Error getting public URL:", urlError);
+          return;
+        }
+  
+        // Now update the listing with the photo URL
+        const { error: updateError } = await supabase
+          .from('listings')
+          .update({ photo_url: publicURL })
+          .eq('id', data[0].id);
+  
+        if (updateError) {
+          console.error("Error updating listing with photo:", updateError);
+          return;
+        }
+      }
+  
+      // If the listing is successfully created, reset form and close modal
+      console.log("Listing created:", data);
+      setDescription("");
+      setPrice("");
+      setPhotoFile(null);
+      setNewListingLocation(null);
+      setIsModalOpen(false);
+      setListingRefresh((prev) => prev + 1); // Trigger listing refresh
     } catch (error) {
-      console.error("Error sending request:", error);
+      console.error("Error creating listing:", error);
     }
   };
 
