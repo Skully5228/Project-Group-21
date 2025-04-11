@@ -219,7 +219,7 @@ const Dashboard = () => {
                   <p>Location: {fav.location}</p>
                   {fav.photo_url && (
                     <img
-                      src={`http://localhost:5000/${fav.photo_url}`}
+                      src={fav.photo_url}
                       alt="Favorite Listing"
                       style={{ width: "200px" }}
                     />
@@ -236,7 +236,7 @@ const Dashboard = () => {
           <div>
             <h3>Settings</h3>
             <div style={styles.themeToggleContainer}>
-              <p>Current theme: {theme} mode</p>
+              <p>Current Theme: {theme} Mode</p>
               <button style={styles.themeToggleBtn} onClick={toggleTheme}>
                 Toggle Dark/Light Mode
               </button>
@@ -254,12 +254,12 @@ const Dashboard = () => {
 
   // Set background styles according to the theme.
   const pageWrapperBackground =
-    theme === "dark"
+    theme === "Dark"
       ? "linear-gradient(135deg, #333, #555)"
-      : "linear-gradient(135deg, #FAD961, #F76B1C)";
+      : "linear-gradient(135deg,hsla(185, 87.20%, 72.40%, 0.76),rgba(139, 248, 122, 0.75))";
   const dashboardContainerBg =
-    theme === "dark" ? "rgba(50, 50, 50, 0.95)" : "rgba(255, 255, 255, 0.95)";
-  const textColor = theme === "dark" ? "#fff" : "#333";
+    theme === "Dark" ? "rgba(50, 50, 50, 0.95)" : "rgba(255, 255, 255, 0.95)";
+  const textColor = theme === "Dark" ? "#fff" : "#333";
 
   return (
     <div style={{ ...styles.pageWrapper, background: pageWrapperBackground }}>

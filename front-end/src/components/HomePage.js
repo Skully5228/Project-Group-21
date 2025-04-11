@@ -83,10 +83,10 @@ const HomePage = () => {
   }, [searchText, priceMin, priceMax, range]);
   
   const backgroundStyle =
-    theme === "dark"
+    theme === "Dark"
       ? "linear-gradient(135deg, #333, #555)"
-      : "linear-gradient(135deg, #FAD961, #F76B1C)";
-  const textColor = theme === "dark" ? "#fff" : "#333";
+      : "linear-gradient(135deg,hsla(185, 87.20%, 72.40%, 0.76),rgba(139, 248, 122, 0.75))";
+  const textColor = theme === "Dark" ? "#fff" : "#333";
 
   return (
     <div
@@ -143,7 +143,7 @@ const HomePage = () => {
           </div>
         </div>
       </section>
-
+  
       <section style={styles.listingsSection}>
         <h3 style={styles.sectionTitle}>Listings</h3>
         {listings.length > 0 ? (
@@ -153,20 +153,49 @@ const HomePage = () => {
               return (
                 <div
                   key={listing.id}
-                  style={styles.listingCard}
+                  style={{
+                    ...styles.listingCard,
+                    backgroundImage: `url(${listing.photo_url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    color: "#fff",
+                    position: "relative",
+                  }}
                   onClick={() => setSelectedListing(listing)}
                 >
-                  <h4 style={styles.listingTitle}>
+                  {/* Overlay */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: "rgba(0, 0, 0, 0.2)",
+                      zIndex: 0,
+                    }}
+                  ></div>
+  
+                  {/* Description */}
+                  <h4 style={{ ...styles.listingTitle, zIndex: 2 }}>
                     {listing.description || "No Title"}
                   </h4>
+  
+                  {/* Location */}
                   {loc ? (
-                    <p style={styles.listingLocation}>
+                    <p style={{ ...styles.listingLocation, zIndex: 2 }}>
                       Location: ({loc.lat.toFixed(4)}, {loc.lng.toFixed(4)})
                     </p>
                   ) : (
-                    <p style={styles.listingLocation}>Location: N/A</p>
+                    <p style={{ ...styles.listingLocation, zIndex: 2 }}>
+                      
+                    </p>
                   )}
-                  <p style={styles.listingPrice}>Price: ${listing.price}</p>
+  
+                  {/* Price */}
+                  <p style={{ ...styles.listingPrice, zIndex: 2 }}>
+                    Price: ${listing.price}
+                  </p>
                 </div>
               );
             })}
@@ -175,7 +204,7 @@ const HomePage = () => {
           <p style={styles.noResults}>No listings match your search.</p>
         )}
       </section>
-
+  
       {/* Chat Modal */}
       {selectedListing && (
         <ChatWindow
@@ -187,7 +216,7 @@ const HomePage = () => {
       )}
     </div>
   );
-};
+}
 
 const styles = {
   container: {
@@ -288,24 +317,27 @@ const styles = {
     borderRadius: "8px",
     padding: "20px",
     backgroundColor: "#fff",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+    boxShadow: "0 2px 8px rgba(0,0,0,3)",
     transition: "transform 0.2s ease",
     cursor: "pointer",
   },
   listingTitle: {
     fontSize: "1.25rem",
     marginBottom: "10px",
+    zIndex: 2
   },
   listingLocation: {
     fontSize: "0.9rem",
-    color: "#888",
+    color: "#FFFFFF",
     marginTop: "10px",
+    zIndex: 2
   },
   listingPrice: {
     fontSize: "1rem",
-    color: "#000",
+    color: "#FFFFFF",
     marginTop: "5px",
     fontWeight: "600",
+    zIndex: 2
   },
   noResults: {
     fontSize: "1.1rem",
