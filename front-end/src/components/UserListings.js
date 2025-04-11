@@ -21,13 +21,6 @@ const ListingCard = ({ listing, onDelete }) => {
         <h4>{listing.description}</h4>
         <p>Price: ${listing.price}</p>
         <p>Location: {listing.location}</p>
-        {listing.photo_url && (
-          <img
-            src={`http://localhost:5000/${listing.photo_url}`}
-            alt="Listing"
-            style={{ width: "200px" }}
-          />
-        )}
       </div>
       <button
         onClick={() => onDelete(listing.id)}

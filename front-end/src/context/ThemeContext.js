@@ -4,10 +4,10 @@ export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   // Try to load theme from localStorage; default to 'light'
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "Light");
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === "light" ? "dark" : "light"));
+    setTheme(prev => (prev === "Light" ? "Dark" : "Light"));
   };
 
   useEffect(() => {
