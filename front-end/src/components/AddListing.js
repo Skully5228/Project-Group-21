@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 const AddListing = ({ onListingAdded, userId }) => { // userId is passed as a prop (replace with actual user ID if needed)
   const [formData, setFormData] = useState({
-    title: "", // New field for title
+    title: "", 
     description: "",
     price: "",
     latitude: "",

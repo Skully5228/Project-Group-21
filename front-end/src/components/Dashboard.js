@@ -8,9 +8,9 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ThemeContext } from "../context/ThemeContext";
-import MapSearchComponent from "./MapSearchComponent"; // if using the map with search
+import MapSearchComponent from "./MapSearchComponent"; 
 import MessagesTab from "./MessagesTab";
-import UserListings from "./UserListings"; // Your UserListings component
+import UserListings from "./UserListings"; 
 import { supabase } from "./supabase";
 
 const Dashboard = () => {
@@ -43,10 +43,7 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  // State for triggering refresh of listings (used in the Settings tab)
   const [listingRefresh, setListingRefresh] = useState(0);
-
-  // NEW: Favorites state to hold an array of favorited listings.
   const [favorites, setFavorites] = useState([]);
 
   // Fetch favorites from the backend once the user is available.
@@ -64,7 +61,6 @@ const Dashboard = () => {
   }, [user]);
 
   // Callback to update favorites.
-  // Call this function from any child component (like ChatWindow)
   // to update the Dashboard’s favorites accordingly.
   const handleFavorite = (listing, isFavorited) => {
     if (isFavorited) {
@@ -77,7 +73,6 @@ const Dashboard = () => {
       setFavorites((prev) => prev.filter((fav) => fav.id !== listing.id));
     }
     console.log(`Listing ${listing.id} favorite toggled: ${isFavorited}`);
-    // You can also perform additional API calls here if needed.
   };
 
   // Handler for file input changes.
@@ -90,12 +85,12 @@ const Dashboard = () => {
 
     // Prepare the data to be sent to Supabase
     const listingData = {
-      description, // using description as the listing’s display text
+      description,
       price: parseFloat(price),
       location: newListingLocation
         ? `${newListingLocation.lat},${newListingLocation.lng}`
         : null,
-      photo_url: null, // We'll handle the photo upload separately below
+      photo_url: null, 
     };
 
     try {

@@ -8,15 +8,10 @@ const MessagesTab = () => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
 
-  // Fetch conversation summaries for the logged in user.
-  // This query fetches all messages where the user is involved,
-  // joins the related listing info, orders them (newest first),
-  // and then we group them by listing_id in the client.
   useEffect(() => {
     if (!user) return;
 
     const fetchConversations = async () => {
-      // Query the messages table with a join on listings.
       const { data, error } = await supabase
         .from("messages")
         .select("*, listing: listings(*)")
@@ -29,7 +24,6 @@ const MessagesTab = () => {
       }
 
       if (data) {
-        // Group messages by listing_id. For each conversation select the first (latest) message.
         const convMap = new Map();
         data.forEach((msg) => {
           if (!convMap.has(msg.listing_id)) {
@@ -43,7 +37,6 @@ const MessagesTab = () => {
     fetchConversations();
   }, [user]);
 
-  // If no user is logged in, display a fallback.
   if (!user) {
     return (
       <div style={messagesStyles.container}>
@@ -53,16 +46,13 @@ const MessagesTab = () => {
     );
   }
 
-  // When a conversation is selected, open the ChatWindow.
+
   if (selectedConversation) {
-    // Determine the other party's ID.
-    // Here we assume a conversation is between two users.
     const otherPartyId =
       selectedConversation.sender_id === user.id
         ? selectedConversation.recipient_id
         : selectedConversation.sender_id;
 
-    // Use the joined listing details to get the real product title.
     const productTitle =
       selectedConversation.listing && selectedConversation.listing.title
         ? selectedConversation.listing.title

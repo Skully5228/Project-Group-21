@@ -10,9 +10,6 @@ const supabaseUrl = 'https://rxdfrrfdaweiosovpala.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4ZGZycmZkYXdlaW9zb3ZwYWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NTgyNTQsImV4cCI6MjA1OTEzNDI1NH0.c8gGtwSx0rnmjAAAsNzfPfqSonZKLni7sgYR9HMLOZQ';  // Replace with your Supabase Key
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Load environment variables from the .env file
-//dotenv.config();
-
 // Initialize Express app
 const app = express();
 app.use(cors());
@@ -84,9 +81,6 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// Other routes (like favorites and additional listings endpoints) remain unchanged.
-
-// Start the server on the designated port.
 // POST /api/listings to create a new listing with photo URL
 app.post('/api/listings', ensureAuthenticated, async (req, res) => {
   const { title, price, description, photoUrl, latitude, longitude } = req.body;
