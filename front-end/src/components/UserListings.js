@@ -50,10 +50,10 @@ const UserListings = ({ refreshTrigger }) => {
 
   const fetchListings = useCallback(async () => {
     try {
+      // Only perform fetch if user exists, otherwise this string will be "undefined"
+      if (!user || !user.id) return;
       const response = await fetch(`/api/listings?userId=${user.id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch listings");
-      }
+      if (!response.ok) throw new Error("Failed to fetch listings");
       const data = await response.json();
       setListings(data.listings);
     } catch (err) {
@@ -68,6 +68,7 @@ const UserListings = ({ refreshTrigger }) => {
       fetchListings();
     }
   }, [user, refreshTrigger, fetchListings]);
+
 
   // Function to delete a listing.
   const handleDelete = async (listingId) => {

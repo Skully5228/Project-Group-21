@@ -29,6 +29,21 @@ const Dashboard = () => {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
 
+
+  // Fetch favorites only if the user exists.
+  useEffect(() => {
+    if (user && user.id) {
+      fetch(`/api/favorites?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.favorites) {
+            setFavorites(data.favorites);
+          }
+        })
+        .catch((err) => console.error("Error fetching favorites:", err));
+    }
+  }, [user]);
+
   // State for triggering refresh of listings (used in the Settings tab)
   const [listingRefresh, setListingRefresh] = useState(0);
 

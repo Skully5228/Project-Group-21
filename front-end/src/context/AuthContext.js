@@ -1,29 +1,20 @@
-import React, { createContext, useState } from "react";
+// src/context/AuthContext.js
+import React, { createContext, useState, useContext } from "react";
 
-// Dummy user for testing.
-// Remove or modify this when integrating real OAuth.
-const dummyUser = {
-  id: 1,
-  name: "Test User",
-  email: "test@example.com",
-  // You can add any additional fields you expect from the OAuth provider,
-  // for example: picture: "https://example.com/profile.jpg"
-};
+// Create the context for authentication.
+const AuthContext = createContext();
 
-export const AuthContext = createContext({
-  user: null,
-  signIn: () => {},
-  signOut: () => {}
-});
-
+// AuthProvider that holds the user state.
+// Note: The initial state is null.
 export const AuthProvider = ({ children }) => {
-  // For testing, start with the dummyUser so that you're "logged in"
-  const [user, setUser] = useState(dummyUser);
+  const [user, setUser] = useState(null);
 
+  // Call this after a successful OAuth login.
   const signIn = (userData) => {
     setUser(userData);
   };
 
+  // Resets the user to null on sign out.
   const signOut = () => {
     setUser(null);
   };
@@ -34,3 +25,10 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+// Custom hook to access the auth context.
+export const useAuth = () => useContext(AuthContext);
+
+// Export AuthContext as both a named export and a default export.
+export { AuthContext };
+export default AuthContext;

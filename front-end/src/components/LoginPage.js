@@ -1,42 +1,59 @@
-import React from "react";
+// src/components/LoginPage.js
+import React, { useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext"; // Import signIn from AuthContext
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuth(); // Get the signIn function from our auth context
+  const [loading, setLoading] = useState(false);
 
-  // Use the actual Google login flow
   const login = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
+    flow: "implicit", // Using implicit flow
+    scope: "openid email profile", // Request identity info so we get an access token with user data
+    responseType: "token", // Instruct Google to return an access token
+    onSuccess: async (tokenResponse) => {
       console.log("Google OAuth successful:", tokenResponse);
-      // Send the id_token from Google to your backend:
-      fetch("http://localhost:3000/api/auth/google", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: tokenResponse.id_token }),
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.user) {
-            // If authentication is successful, update your AuthContext:
-            // For instance: signIn(data.user);
-            console.log("Backend auth successful:", data.user);
-            navigate("/dashboard");
-          } else {
-            console.error("Backend authentication error:", data.error);
-          }
-        })
-        .catch((err) => {
-          console.error("Error during backend authentication:", err);
+      setLoading(true);
+
+      // Expect an access token in the response.
+      const tokenToSend = tokenResponse.access_token;
+      if (!tokenToSend) {
+        console.error(
+          "Access token not found in tokenResponse. Please check your Google OAuth configuration."
+        );
+        setLoading(false);
+        return;
+      }
+      console.log("Access token being sent:", tokenToSend);
+
+      try {
+        const response = await fetch("http://localhost:5000/api/auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: tokenToSend }),
         });
+        const data = await response.json();
+
+        if (data.user) {
+          console.log("Backend auth successful:", data.user);
+          // Update the AuthContext with the returned user data.
+          signIn(data.user);
+          navigate("/dashboard");
+        } else {
+          console.error("Backend authentication error:", data.error);
+        }
+      } catch (err) {
+        console.error("Error during backend authentication:", err);
+      } finally {
+        setLoading(false);
+      }
     },
     onError: (errorResponse) => {
       console.error("Google OAuth error:", errorResponse);
     },
   });
-  
 
   return (
     <div style={styles.wrapper}>
@@ -45,8 +62,8 @@ const LoginPage = () => {
         <p style={styles.subtitle}>
           Discover local deals and connect with your community.
         </p>
-        <button style={styles.button} onClick={login}>
-          Login with Google
+        <button style={styles.button} onClick={login} disabled={loading}>
+          {loading ? "Logging in..." : "Login with Google"}
         </button>
       </div>
     </div>

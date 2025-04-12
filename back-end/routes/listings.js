@@ -1,6 +1,6 @@
-const express = require('express');
-const { supabase } = require('../supabase');  // Correcting the import
-const geolib = require('geolib');
+import express from 'express';
+import { supabase } from '../supabase.js'; // Adjust the file extension if needed
+import geolib from 'geolib';
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
     let { data: listings, error } = await supabase
       .from('listings')
       .select('*')
-      .eq('sold', 0);  // Make sure to filter only unsold listings
+      .eq('sold', 0); // Make sure to filter only unsold listings
 
     if (error) throw error;
 
@@ -65,9 +65,7 @@ router.post('/', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('listings')
-      .insert([
-        { user_id, price, location, photo_url, description }
-      ]);
+      .insert([{ user_id, price, location, photo_url, description }]);
 
     if (error) throw error;
 
@@ -78,4 +76,4 @@ router.post('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
