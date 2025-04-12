@@ -11,8 +11,9 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Load environment variables from the .env file
-dotenv.config();
+//dotenv.config();
 
+// Initialize Express app
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -86,6 +87,172 @@ app.post('/api/auth/google', async (req, res) => {
 // Other routes (like favorites and additional listings endpoints) remain unchanged.
 
 // Start the server on the designated port.
+// POST /api/listings to create a new listing with photo URL
+app.post('/api/listings', ensureAuthenticated, async (req, res) => {
+  const { title, price, description, photoUrl, latitude, longitude } = req.body;
+
+  if (!title || !price) {
+    return res.status(400).json({ error: 'Missing required fields: title, price' });
+  }
+
+  const userId = 1; // Replace with actual user ID from authentication
+
+  try {
+    // Insert the new listing into Supabase
+    const { data, error } = await supabase
+      .from('listings')
+      .insert([{
+        user_id: userId,
+        price,
+        title,
+        description,
+        photo_url: photoUrl,
+        latitude,
+        longitude
+      }])
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.status(201).json({ message: 'Listing created successfully', listingId: data.id });
+  } catch (error) {
+    console.error('Error creating listing:', error);
+    res.status(500).json({ error: 'Server error creating listing' });
+  }
+});
+
+// GET /api/listings to retrieve all listings or those by a specific user
+app.get('/api/listings', ensureAuthenticated, async (req, res) => {
+  const { userId } = req.query;
+
+  try {
+    let { data, error } = await supabase
+      .from('listings')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (userId) {
+      data = data.filter(listing => listing.user_id === parseInt(userId));
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    res.status(200).json({ listings: data });
+  } catch (error) {
+    console.error('Error retrieving listings:', error);
+    res.status(500).json({ error: 'Server error retrieving listings' });
+  }
+});
+
+// DELETE /api/listings/:id to delete a listing
+app.delete('/api/listings/:id', ensureAuthenticated, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from('listings')
+      .delete()
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    res.status(200).json({ message: 'Listing successfully deleted' });
+  } catch (error) {
+    console.error('Error deleting listing:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/favorites to add a listing to a user's favorites using listing_id
+app.post('/api/favorites', ensureAuthenticated, async (req, res) => {
+  const { userId, listingId } = req.body;
+
+  if (!userId || !listingId) {
+    return res.status(400).json({ error: 'Missing userId or listingId' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('favorites')
+      .insert([{ user_id: userId, listing_id: listingId }], { returning: "representation" })
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.status(201).json({ message: 'Favorite added', favorite: data });
+  } catch (error) {
+    console.error('Error adding favorite:', error);
+    res.status(500).json({ error: 'Error adding favorite' });
+  }
+});
+
+// GET /api/favorites to get all favorites for a user, returning the joined listing details
+app.get('/api/favorites', ensureAuthenticated, async (req, res) => {
+  const { userId } = req.query;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'Missing userId' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select(`
+        listing_id,
+        listings (
+          *
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    // Map through each favorite record and extract the joined listing details.
+    const listings = data.map(fav => fav.listings).filter(Boolean);
+    res.status(200).json({ favorites: listings });
+  } catch (error) {
+    console.error('Error fetching favorites:', error);
+    res.status(500).json({ error: 'Error fetching favorites' });
+  }
+});
+
+// DELETE /api/favorites to remove a listing from the user's favorites using listing_id
+app.delete('/api/favorites', ensureAuthenticated, async (req, res) => {
+  const { userId, listingId } = req.body;
+
+  if (!userId || !listingId) {
+    return res.status(400).json({ error: 'Missing userId or listingId' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', userId)
+      .eq('listing_id', listingId)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Favorite not found' });
+    }
+
+    res.status(200).json({ message: 'Favorite removed' });
+  } catch (error) {
+    console.error('Error deleting favorite:', error);
+    res.status(500).json({ error: 'Error deleting favorite' });
+  }
+});
+
+// Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

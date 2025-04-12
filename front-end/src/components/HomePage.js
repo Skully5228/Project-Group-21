@@ -1,8 +1,8 @@
 import React, { useState, useContext, useEffect } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import ChatWindow from "./ChatWindow";
-import { supabase } from './supabase'; 
-import geolib from 'geolib'; 
+import { supabase } from "./supabase";
+import geolib from "geolib";
 
 const parseLocation = (loc) => {
   if (typeof loc === "string") {
@@ -31,33 +31,39 @@ const HomePage = () => {
           .from("listings")
           .select("*")
           .eq("sold", 0); // Get only unsold listings
-  
+
         if (error) throw error;
-  
+
         console.log("Fetched Listings:", data); // Log the fetched listings
-  
+
         // Apply filters on the fetched data
         let filteredListings = data;
-  
+
         // Apply text search filter
         if (searchText) {
           const lowerQ = searchText.toLowerCase();
-          filteredListings = filteredListings.filter(listing =>
-            listing.description && listing.description.toLowerCase().includes(lowerQ)
+          filteredListings = filteredListings.filter(
+            (listing) =>
+              listing.description &&
+              listing.description.toLowerCase().includes(lowerQ)
           );
         }
-  
+
         // Apply price filters
         if (priceMin) {
-          filteredListings = filteredListings.filter(listing => listing.price >= parseFloat(priceMin));
+          filteredListings = filteredListings.filter(
+            (listing) => listing.price >= parseFloat(priceMin)
+          );
         }
         if (priceMax) {
-          filteredListings = filteredListings.filter(listing => listing.price <= parseFloat(priceMax));
+          filteredListings = filteredListings.filter(
+            (listing) => listing.price <= parseFloat(priceMax)
+          );
         }
-  
+
         // Apply location filter based on range if available
         if (range) {
-          filteredListings = filteredListings.filter(listing => {
+          filteredListings = filteredListings.filter((listing) => {
             const loc = parseLocation(listing.location);
             if (loc) {
               const distance = geolib.getDistance(
@@ -70,18 +76,17 @@ const HomePage = () => {
             return false;
           });
         }
-  
+
         console.log("Filtered Listings:", filteredListings); // Log filtered listings
-  
         setListings(filteredListings);
       } catch (err) {
         console.error("Error fetching listings:", err);
       }
     };
-  
+
     fetchListings();
   }, [searchText, priceMin, priceMax, range]);
-  
+
   const backgroundStyle =
     theme === "Dark"
       ? "linear-gradient(135deg, #333, #555)"
@@ -143,7 +148,7 @@ const HomePage = () => {
           </div>
         </div>
       </section>
-  
+
       <section style={styles.listingsSection}>
         <h3 style={styles.sectionTitle}>Listings</h3>
         {listings.length > 0 ? (
@@ -161,7 +166,15 @@ const HomePage = () => {
                     color: "#fff",
                     position: "relative",
                   }}
-                  onClick={() => setSelectedListing(listing)}
+                  onClick={() => {
+                    console.log("Clicked listing userId:", listing.userId);
+                    // Only allow click if userId (seller) is not null/undefined
+                    if (listing.userId === null || listing.userId === undefined) {
+                      alert("Seller information is missing for this listing. Chat cannot be opened.");
+                      return;
+                    }
+                    setSelectedListing(listing);
+                  }}
                 >
                   {/* Overlay */}
                   <div
@@ -175,23 +188,21 @@ const HomePage = () => {
                       zIndex: 0,
                     }}
                   ></div>
-  
+
                   {/* Description */}
                   <h4 style={{ ...styles.listingTitle, zIndex: 2 }}>
                     {listing.description || "No Title"}
                   </h4>
-  
+
                   {/* Location */}
                   {loc ? (
                     <p style={{ ...styles.listingLocation, zIndex: 2 }}>
                       Location: ({loc.lat.toFixed(4)}, {loc.lng.toFixed(4)})
                     </p>
                   ) : (
-                    <p style={{ ...styles.listingLocation, zIndex: 2 }}>
-                      
-                    </p>
+                    <p style={{ ...styles.listingLocation, zIndex: 2 }}></p>
                   )}
-  
+
                   {/* Price */}
                   <p style={{ ...styles.listingPrice, zIndex: 2 }}>
                     Price: ${listing.price}
@@ -204,19 +215,19 @@ const HomePage = () => {
           <p style={styles.noResults}>No listings match your search.</p>
         )}
       </section>
-  
+
       {/* Chat Modal */}
       {selectedListing && (
         <ChatWindow
           listingId={selectedListing.id}
-          sellerId={selectedListing.user_id} 
+          sellerId={selectedListing.userId}  // Use userId consistently
           productTitle={selectedListing.description || "No Title"}
           onClose={() => setSelectedListing(null)}
         />
       )}
     </div>
   );
-}
+};
 
 const styles = {
   container: {

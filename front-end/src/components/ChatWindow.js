@@ -2,11 +2,18 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { supabase } from "./supabase";
 import { AuthContext } from "../context/AuthContext";
 
-const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) => {
+const ChatWindow = ({
+  listingId,
+  sellerId,
+  productTitle,
+  onClose,
+  onFavorite,
+}) => {
   const { user } = useContext(AuthContext);
   const userId = user?.id;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [favorited, setFavorited] = useState(false);
   const messageContainerRef = useRef(null);
 
   // Fetch messages based on listingId, filtering by sender and recipient.
@@ -42,7 +49,28 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
     fetchMessages();
   }, [listingId, sellerId, userId]);
 
-  // Auto-scroll the chat container to the bottom on messages update.
+  // Fetch favorite state for this listing when the ChatWindow mounts or changes.
+  useEffect(() => {
+    const fetchFavoriteStatus = async () => {
+      if (!userId || !listingId) return;
+      const { data, error } = await supabase
+        .from("favorites")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("listing_id", listingId)
+        .maybeSingle();
+      if (error) {
+        console.error("Error fetching favorite state:", error);
+      } else {
+        // If a favorite record exists, data will be non-null.
+        setFavorited(!!data);
+      }
+    };
+
+    fetchFavoriteStatus();
+  }, [userId, listingId]);
+
+  // Auto-scroll the chat container to the bottom when messages update.
   useEffect(() => {
     if (messageContainerRef.current) {
       messageContainerRef.current.scrollTop =
@@ -78,7 +106,9 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
       console.log("Message sent, returned data:", data[0]);
       setMessages((prev) => [...prev, data[0]]);
     } else {
-      console.error("Insert returned no data. This may be an issue with your Supabase configuration.");
+      console.error(
+        "Insert returned no data. This may be an issue with your Supabase configuration."
+      );
     }
     setNewMessage("");
   };
@@ -90,14 +120,60 @@ const ChatWindow = ({ listingId, sellerId, productTitle, onClose, onFavorite }) 
     }
   };
 
+  // Handle favorite toggle: if currently not favorited, insert a favorite row.
+  // Otherwise, delete the favorite record.
+  const handleFavorite = async () => {
+    const newFavoriteState = !favorited;
+    if (newFavoriteState) {
+      // Add favorite using listing_id instead of listing_title.
+      const { data, error } = await supabase
+        .from("favorites")
+        .insert([{ user_id: userId, listing_id: listingId }], {
+          returning: "representation",
+        })
+        .maybeSingle();
+      if (error) {
+        console.error("Error adding favorite:", error);
+      } else {
+        setFavorited(true);
+        if (onFavorite) {
+          onFavorite(listingId, true);
+        }
+      }
+    } else {
+      // Remove favorite using listing_id.
+      const { data, error } = await supabase
+        .from("favorites")
+        .delete()
+        .eq("user_id", userId)
+        .eq("listing_id", listingId)
+        .maybeSingle();
+      if (error) {
+        console.error("Error removing favorite:", error);
+      } else {
+        setFavorited(false);
+        if (onFavorite) {
+          onFavorite(listingId, false);
+        }
+      }
+    }
+  };
+
   return (
     <div style={styles.overlay}>
       <div style={styles.container}>
         <div style={styles.header}>
-          <h4 style={styles.productTitle}>{productTitle}</h4>
-          <button onClick={onClose} style={styles.closeButton}>
-            ×
-          </button>
+          <div style={styles.headerLeft}>
+            <h4 style={styles.productTitle}>{productTitle}</h4>
+          </div>
+          <div style={styles.headerRight}>
+            <button onClick={handleFavorite} style={styles.favoriteButton}>
+              {favorited ? "★ Favorited" : "☆ Favorite"}
+            </button>
+            <button onClick={onClose} style={styles.closeButton}>
+              ×
+            </button>
+          </div>
         </div>
         <div style={styles.messageContainer} ref={messageContainerRef}>
           {messages.map((msg, idx) => {
@@ -167,10 +243,25 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
   },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    display: "flex",
+    gap: "0.5rem",
+  },
   productTitle: {
     margin: 0,
     fontSize: "1.2rem",
     color: "#333",
+  },
+  favoriteButton: {
+    border: "none",
+    background: "transparent",
+    fontSize: "1rem",
+    cursor: "pointer",
+    color: "#FFA500",
+    padding: "0.3rem 0.5rem",
   },
   closeButton: {
     border: "none",
