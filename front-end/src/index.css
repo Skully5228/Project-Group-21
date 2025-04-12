@@ -1,0 +1,53 @@
+:root {
+    --primary-color: #5563de;
+    --primary-color-hover: #4653c5;
+  }
+  
+  body {
+    margin: 0;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: linear-gradient(135deg, #74ABE2, #5563DE);
+    overflow-x: hidden;
+    color: #333;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  button:hover {
+    background-color: var(--primary-color-hover);
+    transform: scale(1.05);
+  }
+  
+  .dashboard-tab:hover {
+    color: #F76B1C;
+    transform: scale(1.05);
+  }
+  
+  .header-link {
+    color: #fff;
+    transition: color 0.3s ease, transform 0.3s ease;
+  }
+  
+  .header-link:hover {
+    color: #F76B1C;
+    transform: scale(1.05);
+  }
+  
