@@ -6,8 +6,7 @@
 ### steps required to deploy marketplace application ###
   1. Run "npm install" to install all required dependencies
 
-  2. Open 2 separate terminals and cd into front-end on one, and back-end in the other
-    a. run "npm start" in both terminals, starting the "back-end" up first
+  2. Open 2 separate terminals and cd into front-end on one, and back-end in the other. Run "npm start" in both terminals, starting the "back-end" up first
 
   3. The application will be running on your localhost on port 3000, but the application should just launch itself
 
