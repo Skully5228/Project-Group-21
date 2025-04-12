@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import cors from 'cors';
+=======
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import { OAuth2Client } from 'google-auth-library';
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
 import { createClient } from '@supabase/supabase-js';
 import listingsRouter from './routes/listings.js';
 
@@ -11,16 +18,29 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Load environment variables from the .env file
+<<<<<<< HEAD
 //dotenv.config();
 
 // Initialize Express app
 const app = express();
+=======
+dotenv.config();
+
+// Initialize Express app
+const app = express();
+
+// Google OAuth client
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Enable Cross-Origin Resource Sharing
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
 app.use(cors());
 app.use(express.json());
 
 // Use listingsRouter for listing routes
 app.use('/api/listings', listingsRouter);
 
+<<<<<<< HEAD
 // Middleware to ensure the user is authenticated (placeholder)
 function ensureAuthenticated(req, res, next) {
   // For demonstration purposes, simply proceed.
@@ -57,6 +77,33 @@ app.post('/api/auth/google', async (req, res) => {
     const picture = tokenInfo.picture || '';
 
     // Check if the user already exists in your Supabase database.
+=======
+// Middleware to ensure the user is authenticated
+function ensureAuthenticated(req, res, next) {
+  // For demonstration purposes, we will just call next()
+  // Replace this with your actual authentication logic (e.g., session or JWT check)
+  next();
+}
+
+// POST /api/auth/google to authenticate with Google
+app.post('/api/auth/google', async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    // Verify the Google ID token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const googleId = payload.sub;
+    const email = payload.email;
+    const name = payload.name;
+    const picture = payload.picture;
+
+    // Check if user already exists in the Supabase database
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -66,17 +113,33 @@ app.post('/api/auth/google', async (req, res) => {
     let user;
 
     if (error || !data) {
+<<<<<<< HEAD
       // Insert a new user since one wasn't found.
+=======
+      // Insert the new user into the Supabase database
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
       const { data: newUser, error: insertError } = await supabase
         .from('users')
         .insert([{ google_id: googleId, email, name, picture }])
         .single();
+<<<<<<< HEAD
       if (insertError) throw insertError;
+=======
+      
+      if (insertError) {
+        throw insertError;
+      }
+
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
       user = newUser;
     } else {
       user = data;
     }
 
+<<<<<<< HEAD
+=======
+    // Return user data for demonstration (in production, generate a session or JWT token)
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
     res.status(200).json({ message: 'Authentication successful', user });
   } catch (error) {
     console.error('Google token verification failed:', error);
@@ -84,6 +147,7 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // Other routes (like favorites and additional listings endpoints) remain unchanged.
 
 // Start the server on the designated port.
@@ -120,6 +184,43 @@ app.post('/api/listings', ensureAuthenticated, async (req, res) => {
     res.status(500).json({ error: 'Server error creating listing' });
   }
 });
+=======
+// POST /api/listings to create a new listing with photo URL
+app.post('/api/listings', ensureAuthenticated, async (req, res) => {
+    const { title, price, description, photoUrl, latitude, longitude } = req.body;
+  
+    if (!title || !price) {
+      return res.status(400).json({ error: 'Missing required fields: title, price' });
+    }
+  
+    const userId = 1; // Replace with actual user ID from authentication
+  
+    try {
+      // Insert the new listing into Supabase
+      const { data, error } = await supabase
+        .from('listings')
+        .insert([{
+          user_id: userId,
+          price,
+          title,
+          description,
+          photo_url: photoUrl,
+          latitude,
+          longitude
+        }])
+        .single();
+  
+      if (error) {
+        throw error;
+      }
+  
+      res.status(201).json({ message: 'Listing created successfully', listingId: data.id });
+    } catch (error) {
+      console.error('Error creating listing:', error);
+      res.status(500).json({ error: 'Server error creating listing' });
+    }
+  });
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
 
 // GET /api/listings to retrieve all listings or those by a specific user
 app.get('/api/listings', ensureAuthenticated, async (req, res) => {
@@ -132,7 +233,11 @@ app.get('/api/listings', ensureAuthenticated, async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (userId) {
+<<<<<<< HEAD
       data = data.filter(listing => listing.userId === parseInt(userId));
+=======
+      data = data.filter(listing => listing.user_id === parseInt(userId));
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
     }
 
     if (error) {
@@ -168,6 +273,7 @@ app.delete('/api/listings/:id', ensureAuthenticated, async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // POST /api/favorites to add a listing to a user's favorites using listing_id
 app.post('/api/favorites', ensureAuthenticated, async (req, res) => {
   const { userId, listingId } = req.body;
@@ -194,6 +300,34 @@ app.post('/api/favorites', ensureAuthenticated, async (req, res) => {
 });
 
 // GET /api/favorites to get all favorites for a user, returning the joined listing details
+=======
+// POST /api/favorites to add a listing to a user's favorites
+app.post('/api/favorites', ensureAuthenticated, async (req, res) => {
+    const { userId, listingTitle } = req.body;
+  
+    if (!userId || !listingTitle) {
+      return res.status(400).json({ error: 'Missing userId or listingTitle' });
+    }
+  
+    try {
+      const { data, error } = await supabase
+        .from('favorites')
+        .insert([{ user_id: userId, listing_title: listingTitle }]) // <-- fixed here
+        .single();
+  
+      if (error) {
+        throw error;
+      }
+  
+      res.status(201).json({ message: 'Favorite added', favorite: data });
+    } catch (error) {
+      console.error('Error adding favorite:', error);
+      res.status(500).json({ error: 'Error adding favorite' });
+    }
+  });
+
+// GET /api/favorites to get all favorites for a user
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
 app.get('/api/favorites', ensureAuthenticated, async (req, res) => {
   const { userId } = req.query;
 
@@ -205,16 +339,27 @@ app.get('/api/favorites', ensureAuthenticated, async (req, res) => {
     const { data, error } = await supabase
       .from('favorites')
       .select(`
+<<<<<<< HEAD
         listing_id,
+=======
+        listing_title,
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
         listings (
           *
         )
       `)
+<<<<<<< HEAD
       .eq('userId', userId);
 
     if (error) throw error;
 
     // Map through each favorite record and extract the joined listing details.
+=======
+      .eq('user_id', userId);
+  
+    if (error) throw error;
+  
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
     const listings = data.map(fav => fav.listings).filter(Boolean);
     res.status(200).json({ favorites: listings });
   } catch (error) {
@@ -223,6 +368,7 @@ app.get('/api/favorites', ensureAuthenticated, async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // DELETE /api/favorites to remove a listing from the user's favorites using listing_id
 app.delete('/api/favorites', ensureAuthenticated, async (req, res) => {
   const { userId, listingId } = req.body;
@@ -249,9 +395,41 @@ app.delete('/api/favorites', ensureAuthenticated, async (req, res) => {
     res.status(500).json({ error: 'Error deleting favorite' });
   }
 });
+=======
+// DELETE /api/favorites to remove a listing from the user's favorites
+app.delete('/api/favorites', ensureAuthenticated, async (req, res) => {
+    const { userId, listingTitle } = req.body;
+  
+    if (!userId || !listingTitle) {
+      return res.status(400).json({ error: 'Missing userId or listingTitle' });
+    }
+  
+    try {
+      const { data, error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('listing_title', listingTitle) // <-- fixed here
+        .single();
+  
+      if (error || !data) {
+        return res.status(404).json({ error: 'Favorite not found' });
+      }
+  
+      res.status(200).json({ message: 'Favorite removed' });
+    } catch (error) {
+      console.error('Error deleting favorite:', error);
+      res.status(500).json({ error: 'Error deleting favorite' });
+    }
+  });
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
 
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391

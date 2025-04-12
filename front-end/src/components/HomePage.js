@@ -1,9 +1,16 @@
 import React, { useState, useContext, useEffect } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import ChatWindow from "./ChatWindow";
+<<<<<<< HEAD
 import { supabase } from "./supabase";
 import geolib from "geolib";
 
+=======
+import { supabase } from './supabase'; // Ensure the path is correct
+import geolib from 'geolib'; // Add geolib for distance calculations
+
+// New helper: parse location string into an object
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
 const parseLocation = (loc) => {
   if (typeof loc === "string") {
     const parts = loc.split(",");
@@ -31,6 +38,7 @@ const HomePage = () => {
           .from("listings")
           .select("*")
           .eq("sold", 0); // Get only unsold listings
+<<<<<<< HEAD
 
         if (error) throw error;
 
@@ -64,6 +72,35 @@ const HomePage = () => {
         // Apply location filter based on range if available
         if (range) {
           filteredListings = filteredListings.filter((listing) => {
+=======
+  
+        if (error) throw error;
+  
+        console.log("Fetched Listings:", data); // Log the fetched listings
+  
+        // Apply filters on the fetched data
+        let filteredListings = data;
+  
+        // Apply text search filter
+        if (searchText) {
+          const lowerQ = searchText.toLowerCase();
+          filteredListings = filteredListings.filter(listing =>
+            listing.description && listing.description.toLowerCase().includes(lowerQ)
+          );
+        }
+  
+        // Apply price filters
+        if (priceMin) {
+          filteredListings = filteredListings.filter(listing => listing.price >= parseFloat(priceMin));
+        }
+        if (priceMax) {
+          filteredListings = filteredListings.filter(listing => listing.price <= parseFloat(priceMax));
+        }
+  
+        // Apply location filter based on range if available
+        if (range) {
+          filteredListings = filteredListings.filter(listing => {
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
             const loc = parseLocation(listing.location);
             if (loc) {
               const distance = geolib.getDistance(
@@ -76,17 +113,31 @@ const HomePage = () => {
             return false;
           });
         }
+<<<<<<< HEAD
 
         console.log("Filtered Listings:", filteredListings); // Log filtered listings
+=======
+  
+        console.log("Filtered Listings:", filteredListings); // Log filtered listings
+  
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
         setListings(filteredListings);
       } catch (err) {
         console.error("Error fetching listings:", err);
       }
     };
+<<<<<<< HEAD
 
     fetchListings();
   }, [searchText, priceMin, priceMax, range]);
 
+=======
+  
+    fetchListings();
+  }, [searchText, priceMin, priceMax, range]);
+  
+  // Set styles based on the current theme
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
   const backgroundStyle =
     theme === "Dark"
       ? "linear-gradient(135deg, #333, #555)"
@@ -148,7 +199,11 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
       <section style={styles.listingsSection}>
         <h3 style={styles.sectionTitle}>Listings</h3>
         {listings.length > 0 ? (
@@ -160,12 +215,17 @@ const HomePage = () => {
                   key={listing.id}
                   style={{
                     ...styles.listingCard,
+<<<<<<< HEAD
                     backgroundImage: `url(${listing.photoUrl})`,
+=======
+                    backgroundImage: `url(${listing.photo_url})`,
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     color: "#fff",
                     position: "relative",
                   }}
+<<<<<<< HEAD
                   onClick={() => {
                     console.log("Clicked listing userId:", listing.userId);
                     // Only allow click if userId (seller) is not null/undefined
@@ -175,6 +235,9 @@ const HomePage = () => {
                     }
                     setSelectedListing(listing);
                   }}
+=======
+                  onClick={() => setSelectedListing(listing)}
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
                 >
                   {/* Overlay */}
                   <div
@@ -188,21 +251,38 @@ const HomePage = () => {
                       zIndex: 0,
                     }}
                   ></div>
+<<<<<<< HEAD
 
                   {/* Description */}
                   <h4 style={{ ...styles.listingTitle, zIndex: 2 }}>
                     {listing.title|| "No Title"}
                   </h4>
 
+=======
+  
+                  {/* Description */}
+                  <h4 style={{ ...styles.listingTitle, zIndex: 2 }}>
+                    {listing.description || "No Title"}
+                  </h4>
+  
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
                   {/* Location */}
                   {loc ? (
                     <p style={{ ...styles.listingLocation, zIndex: 2 }}>
                       Location: ({loc.lat.toFixed(4)}, {loc.lng.toFixed(4)})
                     </p>
                   ) : (
+<<<<<<< HEAD
                     <p style={{ ...styles.listingLocation, zIndex: 2 }}></p>
                   )}
 
+=======
+                    <p style={{ ...styles.listingLocation, zIndex: 2 }}>
+                      
+                    </p>
+                  )}
+  
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
                   {/* Price */}
                   <p style={{ ...styles.listingPrice, zIndex: 2 }}>
                     Price: ${listing.price}
@@ -215,19 +295,31 @@ const HomePage = () => {
           <p style={styles.noResults}>No listings match your search.</p>
         )}
       </section>
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
       {/* Chat Modal */}
       {selectedListing && (
         <ChatWindow
           listingId={selectedListing.id}
+<<<<<<< HEAD
           sellerId={selectedListing.userId}  // Use userId consistently
+=======
+          sellerId={selectedListing.user_id} // Assuming user_id is the seller
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
           productTitle={selectedListing.description || "No Title"}
           onClose={() => setSelectedListing(null)}
         />
       )}
     </div>
   );
+<<<<<<< HEAD
 };
+=======
+}
+>>>>>>> 716e409fd67e1d2637ae53f93b4c65deef16e391
 
 const styles = {
   container: {
