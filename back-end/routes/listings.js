@@ -60,12 +60,13 @@ router.get('/', async (req, res) => {
 
 // POST create new listing
 router.post('/', async (req, res) => {
-  const { user_id, price, location, photo_url, description } = req.body;
+  const { userId, title, price, latitude, longitude, photoUrl, description } = req.body;
+
 
   try {
     const { data, error } = await supabase
       .from('listings')
-      .insert([{ user_id, price, location, photo_url, description }]);
+      .insert([{ userId, title, price, latitude, longitude, photoUrl, description }]);
 
     if (error) throw error;
 

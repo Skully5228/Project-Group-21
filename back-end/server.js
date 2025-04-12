@@ -10,6 +10,9 @@ const supabaseUrl = 'https://rxdfrrfdaweiosovpala.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4ZGZycmZkYXdlaW9zb3ZwYWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NTgyNTQsImV4cCI6MjA1OTEzNDI1NH0.c8gGtwSx0rnmjAAAsNzfPfqSonZKLni7sgYR9HMLOZQ';  // Replace with your Supabase Key
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Load environment variables from the .env file
+//dotenv.config();
+
 // Initialize Express app
 const app = express();
 app.use(cors());
@@ -81,6 +84,9 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+// Other routes (like favorites and additional listings endpoints) remain unchanged.
+
+// Start the server on the designated port.
 // POST /api/listings to create a new listing with photo URL
 app.post('/api/listings', ensureAuthenticated, async (req, res) => {
   const { title, price, description, photoUrl, latitude, longitude } = req.body;
@@ -89,14 +95,12 @@ app.post('/api/listings', ensureAuthenticated, async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: title, price' });
   }
 
-  const userId = 1; // Replace with actual user ID from authentication
-
   try {
     // Insert the new listing into Supabase
     const { data, error } = await supabase
       .from('listings')
       .insert([{
-        user_id: userId,
+        userId: userId,
         price,
         title,
         description,
@@ -128,7 +132,7 @@ app.get('/api/listings', ensureAuthenticated, async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (userId) {
-      data = data.filter(listing => listing.user_id === parseInt(userId));
+      data = data.filter(listing => listing.userId === parseInt(userId));
     }
 
     if (error) {
@@ -175,7 +179,7 @@ app.post('/api/favorites', ensureAuthenticated, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('favorites')
-      .insert([{ user_id: userId, listing_id: listingId }], { returning: "representation" })
+      .insert([{ userId: userId, listing_id: listingId }], { returning: "representation" })
       .single();
 
     if (error) {
@@ -206,7 +210,7 @@ app.get('/api/favorites', ensureAuthenticated, async (req, res) => {
           *
         )
       `)
-      .eq('user_id', userId);
+      .eq('userId', userId);
 
     if (error) throw error;
 
@@ -231,7 +235,7 @@ app.delete('/api/favorites', ensureAuthenticated, async (req, res) => {
     const { data, error } = await supabase
       .from('favorites')
       .delete()
-      .eq('user_id', userId)
+      .eq('userId', userId)
       .eq('listing_id', listingId)
       .single();
 

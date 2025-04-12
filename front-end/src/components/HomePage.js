@@ -148,7 +148,6 @@ const HomePage = () => {
           </div>
         </div>
       </section>
-
       <section style={styles.listingsSection}>
         <h3 style={styles.sectionTitle}>Listings</h3>
         {listings.length > 0 ? (
@@ -160,7 +159,7 @@ const HomePage = () => {
                   key={listing.id}
                   style={{
                     ...styles.listingCard,
-                    backgroundImage: `url(${listing.photo_url})`,
+                    backgroundImage: `url(${listing.photoUrl})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     color: "#fff",
@@ -191,7 +190,7 @@ const HomePage = () => {
 
                   {/* Description */}
                   <h4 style={{ ...styles.listingTitle, zIndex: 2 }}>
-                    {listing.description || "No Title"}
+                    {listing.title|| "No Title"}
                   </h4>
 
                   {/* Location */}
@@ -215,7 +214,6 @@ const HomePage = () => {
           <p style={styles.noResults}>No listings match your search.</p>
         )}
       </section>
-
       {/* Chat Modal */}
       {selectedListing && (
         <ChatWindow

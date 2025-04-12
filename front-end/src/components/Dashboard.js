@@ -8,42 +8,33 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ThemeContext } from "../context/ThemeContext";
-import MapSearchComponent from "./MapSearchComponent"; 
+import MapSearchComponent from "./MapSearchComponent"; // if using the map with search
 import MessagesTab from "./MessagesTab";
-import UserListings from "./UserListings"; 
-import { supabase } from "./supabase";
+import UserListings from "./UserListings"; // Your UserListings component
 
 const Dashboard = () => {
   const tabs = ["Favorites", "Messages", "Settings"];
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [newListingLocation, setNewListingLocation] = useState(null);
   const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
   const tabRefs = useRef({});
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const userId = user?.id;
   const { theme, toggleTheme } = useContext(ThemeContext);
-  const [photoFile, setPhotoFile] = useState(null);
+  const [title, setTitle] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
 
 
-  // Fetch favorites only if the user exists.
-  useEffect(() => {
-    if (user && user.id) {
-      fetch(`/api/favorites?userId=${user.id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.favorites) {
-            setFavorites(data.favorites);
-          }
-        })
-        .catch((err) => console.error("Error fetching favorites:", err));
-    }
-  }, [user]);
-
+  // State for triggering refresh of listings (used in the Settings tab)
   const [listingRefresh, setListingRefresh] = useState(0);
+
+  // NEW: Favorites state to hold an array of favorited listings.
   const [favorites, setFavorites] = useState([]);
 
   // Fetch favorites from the backend once the user is available.
@@ -58,94 +49,49 @@ const Dashboard = () => {
         })
         .catch((err) => console.error("Error fetching favorites:", err));
     }
-  }, [user]);
+  }, [user?.id, listingRefresh]);;
 
   // Callback to update favorites.
+  // Call this function from any child component (like ChatWindow)
   // to update the Dashboard’s favorites accordingly.
-  const handleFavorite = (listing, isFavorited) => {
-    if (isFavorited) {
-      setFavorites((prev) => {
-        // If the listing isn’t already in favorites, add it.
-        if (prev.find((fav) => fav.id === listing.id)) return prev;
-        return [...prev, listing];
-      });
-    } else {
-      setFavorites((prev) => prev.filter((fav) => fav.id !== listing.id));
-    }
-    console.log(`Listing ${listing.id} favorite toggled: ${isFavorited}`);
-  };
-
-  // Handler for file input changes.
-  const handleFileChange = (e) => {
-    setPhotoFile(e.target.files[0]);
-  };
 
   const handleListingSubmit = async (e) => {
     e.preventDefault();
-
-    // Prepare the data to be sent to Supabase
+  
     const listingData = {
+      userId: user.id,
+      title,
       description,
       price: parseFloat(price),
-      location: newListingLocation
-        ? `${newListingLocation.lat},${newListingLocation.lng}`
-        : null,
-      photo_url: null, 
+      latitude: latitude ? parseFloat(latitude) : null,
+      longitude: longitude ? parseFloat(longitude) : null,
+      photoUrl: photoUrl,
     };
-
+    
     try {
-      // Insert the listing data (without the photo) into Supabase
-      const { data, error } = await supabase
-        .from("listings") // Replace with your table name
-        .insert([listingData]);
+      const response = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(listingData),
+      });
+  
+      const result = await response.json();
 
-      if (error) {
-        console.error("Error inserting listing data:", error);
+      if (!response.ok) {
+        console.error("Failed to create listing:", result.error);
         return;
       }
 
-      // If there's a photo file, upload it to Supabase storage
-      if (photoFile) {
-        const photoPath = `listings/${data[0].id}/photo_${Date.now()}`;
-        const { error: uploadError } = await supabase.storage
-          .from("listings")
-          .upload(photoPath, photoFile);
-
-        if (uploadError) {
-          console.error("Error uploading photo:", uploadError);
-          return;
-        }
-
-        // Get the public URL for the uploaded image
-        const { publicURL, error: urlError } = supabase.storage
-          .from("listings")
-          .getPublicUrl(photoPath);
-
-        if (urlError) {
-          console.error("Error getting public URL:", urlError);
-          return;
-        }
-
-        // Now update the listing with the photo URL
-        const { error: updateError } = await supabase
-          .from("listings")
-          .update({ photo_url: publicURL })
-          .eq("id", data[0].id);
-
-        if (updateError) {
-          console.error("Error updating listing with photo:", updateError);
-          return;
-        }
-      }
-
-      // If the listing is successfully created, reset form and close modal
-      console.log("Listing created:", data);
+      // Reset form + close modal
+      setTitle("");
       setDescription("");
       setPrice("");
-      setPhotoFile(null);
-      setNewListingLocation(null);
+      setLatitude(null);
+      setLongitude(null);
+      setPhotoUrl("");
+      
       setIsModalOpen(false);
-      setListingRefresh((prev) => prev + 1); // Trigger listing refresh
+      setListingRefresh((prev) => prev + 1);
     } catch (error) {
       console.error("Error creating listing:", error);
     }
@@ -172,15 +118,12 @@ const Dashboard = () => {
     }
   };
 
-  // Geolocation function for "Use Current Location"
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setNewListingLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
+          setLatitude(position.coords.latitude);
+          setLongitude(position.coords.longitude);
         },
         (error) => {
           console.error("Error obtaining geolocation:", error);
@@ -227,9 +170,9 @@ const Dashboard = () => {
                   <h4>{fav.description}</h4>
                   <p>Price: ${fav.price}</p>
                   <p>Location: {fav.location}</p>
-                  {fav.photo_url && (
+                  {fav.photoUrl && (
                     <img
-                      src={fav.photo_url}
+                      src={fav.photoUrl}
                       alt="Favorite Listing"
                       style={{ width: "200px" }}
                     />
@@ -311,9 +254,28 @@ const Dashboard = () => {
             <div style={styles.modalContent}>
               <h2 style={styles.modalTitle}>Create a New Listing</h2>
               <form style={styles.form} onSubmit={handleListingSubmit}>
+              <div style={styles.formGroup}>
+                  <label style={styles.label}>Title:</label>
+                  <input
+                    type="text"
+                    style={styles.input}
+                    placeholder="Enter listing title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                  />
+                </div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Upload Photo:</label>
-                  <input type="file" style={styles.input} onChange={handleFileChange} />
+                <label>
+                  Photo URL:
+                  <input
+                    type="text"
+                    value={photoUrl}
+                    onChange={(e) => setPhotoUrl(e.target.value)}
+                    placeholder="https://example.com/photo.jpg"
+                    required
+                  />
+                </label>
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Description:</label>
@@ -335,11 +297,10 @@ const Dashboard = () => {
                   />
                 </div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Location:</label>
-                  {newListingLocation ? (
+                <label style={styles.label}>Location:</label>
+                  {latitude && longitude ? (
                     <p style={{ margin: "8px 0" }}>
-                      Selected: ({newListingLocation.lat.toFixed(4)},{" "}
-                      {newListingLocation.lng.toFixed(4)})
+                      Selected: ({latitude.toFixed(4)}, {longitude.toFixed(4)})
                     </p>
                   ) : (
                     <p style={{ margin: "8px 0" }}>No location selected</p>
@@ -379,7 +340,8 @@ const Dashboard = () => {
                 initialPosition={{ lat: 28.5383, lng: -81.3792 }}
                 onLocationSelect={(latlng) => {
                   console.log("Location selected:", latlng);
-                  setNewListingLocation(latlng);
+                  setLatitude(latlng.lat);
+                  setLongitude(latlng.lng);
                 }}
               />
               <div

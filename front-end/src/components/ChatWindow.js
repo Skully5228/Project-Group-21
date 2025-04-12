@@ -56,7 +56,7 @@ const ChatWindow = ({
       const { data, error } = await supabase
         .from("favorites")
         .select("*")
-        .eq("user_id", userId)
+        .eq("userId", userId)
         .eq("listing_id", listingId)
         .maybeSingle();
       if (error) {
@@ -128,7 +128,7 @@ const ChatWindow = ({
       // Add favorite using listing_id instead of listing_title.
       const { data, error } = await supabase
         .from("favorites")
-        .insert([{ user_id: userId, listing_id: listingId }], {
+        .insert([{ userId: userId, listing_id: listingId }], {
           returning: "representation",
         })
         .maybeSingle();
@@ -145,7 +145,7 @@ const ChatWindow = ({
       const { data, error } = await supabase
         .from("favorites")
         .delete()
-        .eq("user_id", userId)
+        .eq("userId", userId)
         .eq("listing_id", listingId)
         .maybeSingle();
       if (error) {

@@ -19,7 +19,7 @@ const ListingCard = ({ listing, onDelete }) => {
       <div>
         <h4>{listing.description}</h4>
         <p>Price: ${listing.price}</p>
-        <p>Location: {listing.location}</p>
+        <p>Location: {listing.latitude}, {listing.longitude}</p>
       </div>
       <button
         onClick={() => onDelete(listing.id)}
